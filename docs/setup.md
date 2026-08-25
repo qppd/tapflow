@@ -95,8 +95,8 @@ Check [BOM.md](./bom.md) for complete list with Shopee/Lazada links and prices. 
 
 ```bash
 # Open terminal (Command Prompt on Windows, Terminal on Mac/Linux)
-git clone https://github.com/qppd/wmldad.git
-cd wmldad
+git clone https://github.com/qppd/tap-flow.git
+cd tap-flow
 ```
 
 ---
@@ -290,12 +290,12 @@ Each ESP32 gets its own power supply:
 ```cpp
 // === Device Identity ===
 // Room ESP32s:
-#define DEVICE_ID        "wmldad-room1"   // or room2, room3
+#define DEVICE_ID        "tapflow-room1"   // or room2, room3
 #define ROOM_ID          1                // 1=bathroom, 2=kitchen, 3=shower
 #define IS_MAIN          false
 
 // Main ESP32:
-// #define DEVICE_ID    "wmldad-main"
+// #define DEVICE_ID    "tapflow-main"
 // #define IS_MAIN      true
 
 // === WiFi ===
@@ -378,7 +378,7 @@ Each ESP32 gets its own power supply:
 ### Step 7.1: Create Firebase Project
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click **Create a project** (e.g., `wmldad-water-monitor`)
+2. Click **Create a project** (e.g., `tapflow-water-monitor`)
 3. Enable **Realtime Database**:
    - Go to Build → Realtime Database → Create Database
    - Start in **test mode**
@@ -394,8 +394,8 @@ Each ESP32 gets its own power supply:
 
 ```bash
 # Clone the web dashboard
-git clone https://github.com/qppd/wmldad-web.git
-cd wmldad-web
+git clone https://github.com/qppd/tapflow-web.git
+cd tapflow-web
 
 # Install dependencies
 npm install

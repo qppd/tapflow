@@ -1,6 +1,6 @@
-# WMLDAD — Smart Water Monitoring System
+# TapFlow — RFID-Based Automatic Water and Electrical Line Control with Water Flow Anomaly Detection
 
-> **A Research Project** — Smart Water Monitoring System that detects leaks and per-room consumption using ESP32 mesh (ESP-NOW), RFID usage tracking, centralized solenoid valve control, and a Next.js web dashboard on Vercel with Firebase Realtime Database + Authentication.
+> **A Research Project** — Smart water monitoring system that detects leaks and per-room consumption using ESP32 mesh (ESP-NOW), RFID usage tracking, centralized solenoid valve control, and a Next.js web dashboard on Vercel with Firebase Realtime Database + Authentication.
 
 ---
 
@@ -106,11 +106,14 @@ Follow these steps **in order**. Each step links to the detailed guide.
 | MFRC522 RFID Reader | 3 | SPI, 1 per room — usage tracking |
 | RFID Cards/Tags | 3+ | Mifare Classic 1K — one per user |
 | YF-S201 Flow Sensor | 4 | 3 rooms (leak detection, uncalibrated) + 1 main (calibrated) |
-| 1-ch Relay 10A | 2 | Optocoupler, main ESP32 controls 2 solenoids |
-| Solenoid Valve 1/2" | 2 | NC (normally closed), 12V DC, centralized at main |
-| Check Valve 1/2" | 2 | Brass, prevent backflow |
+| 2CH Relay with Optocoupler | 1 | Main ESP32 controls 2 solenoids |
+| 1-ch Relay 10A | 3 | 1 per room — controls solenoid valve |
+| Fotek 40A SSR | 3 | 1 per room — controls room power (lights/fan) |
+| Solenoid Valve 1/2" | 5 | NC (normally closed), 12V DC, 2 main + 3 room |
+| Check Valve 1/2" | 3 | Brass, prevent backflow |
 | PPE Pipe + Fittings | 1 set | 1/2" Polypropylene, heat-fused joints |
 | 12V 5A PSU + LM2596S buck | 4 | 220V → 12V → 5V, 1 per ESP32 |
+| DC Power Jack Adapter | 4 | 5.5×2.1mm, connects PSU to expansion board |
 | IP67 ABS Enclosure | 4 | 175×125×75mm, one per ESP32 |
 
 ---

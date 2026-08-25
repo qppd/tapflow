@@ -1,4 +1,4 @@
-# Block Diagram — Water Meter with Leak Detection (ESP-NOW + WiFi → Firebase)
+# Block Diagram — TapFlow (ESP-NOW + WiFi → Firebase)
 
 ## System Block Diagram
 
@@ -130,7 +130,7 @@ T-Connector → 1/2" PPE Pipe
 **🔗 [View Interactive Wiring Diagram](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5)**
 
 ### Static Wiring Diagram (PNG)
-![Wiring Diagram](../wiring/wmldad.png)
+![Wiring Diagram](../wiring/smartrooms.png)
 
 
 
@@ -456,12 +456,12 @@ graph TD
 
 ### Aggregated Data Frame (every 5 sec)
 ```json
-{"device_id": "wmldad-main", "ts": 1703123456789, "rooms": [{"room_id": 1, "flow_rate_lpm": 2.34, "volume_ml": 456}, {"room_id": 2, "flow_rate_lpm": 0.0, "volume_ml": 0}, {"room_id": 3, "flow_rate_lpm": 1.12, "volume_ml": 210}]}
+{"device_id": "tapflow-main", "ts": 1703123456789, "rooms": [{"room_id": 1, "flow_rate_lpm": 2.34, "volume_ml": 456}, {"room_id": 2, "flow_rate_lpm": 0.0, "volume_ml": 0}, {"room_id": 3, "flow_rate_lpm": 1.12, "volume_ml": 210}]}
 ```
 
 ### Alert Frame (leak detected)
 ```json
-{"device_id": "wmldad-main", "ts": 1703123456789, "type": "alert", "level": "major_leak", "room_id": 2, "flow_rate_lpm": 15.2, "duration_sec": 45, "message": "Major leak detected in Kitchen"}
+{"device_id": "tapflow-main", "ts": 1703123456789, "type": "alert", "level": "major_leak", "room_id": 2, "flow_rate_lpm": 15.2, "duration_sec": 45, "message": "Major leak detected in Kitchen"}
 ```
 
 ### Command Frame (Firebase → Main ESP32 via mobizt stream)
@@ -492,7 +492,7 @@ Each sensor: Red → 5V, Black → GND, Yellow → GPIO 26
 | Resource | Description | Link |
 |----------|-------------|------|
 | **Interactive Wiring Diagram** | Cirkit Designer (clickable, zoomable) | [app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5) |
-| **Static Wiring Diagram** | PNG image for docs | `../wiring/wmldad.png` |
+| **Static Wiring Diagram** | PNG image for docs | `../wiring/smartrooms.png` |
 
 
 ---

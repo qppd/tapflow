@@ -1,4 +1,4 @@
-# Bill of Materials (BOM) — Water Meter with Leak Detection
+# Bill of Materials (BOM) — TapFlow
 
 > **System:** Main ESP32 (WiFi + 2 relays + 2 solenoids + calibrated flow sensor) ← ESP-NOW ← 3 Room ESP32s (RFID + leak detection flow sensor) → Firebase RTDB → Next.js on Vercel
 > **Supplier Priority:** [Makerlab Electronics](https://shopee.ph/makerlabelectronics) → 4–5 alternatives  

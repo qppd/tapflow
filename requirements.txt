@@ -1,6 +1,6 @@
 # Project Root requirements.txt
 # For ESP32 firmware, dependencies are managed via Arduino Library Manager
-# For Next.js web dashboard, see wmldad-web/package.json
+# For Next.js web dashboard, see tapflow-web/package.json
 
 # ============================================
 # ESP32 FIRMWARE - Arduino Libraries
@@ -13,7 +13,7 @@
 # ============================================
 # NEXT.JS WEB DASHBOARD (deployed on Vercel)
 # ============================================
-# See wmldad-web/package.json for JS dependencies:
+# See tapflow-web/package.json for JS dependencies:
 # - next (>= 14.x)
 # - firebase (JS SDK)
 # - tailwindcss
