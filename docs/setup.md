@@ -95,8 +95,8 @@ Check [BOM.md](./bom.md) for complete list with Shopee/Lazada links and prices. 
 
 ```bash
 # Open terminal (Command Prompt on Windows, Terminal on Mac/Linux)
-git clone https://github.com/qppd/tap-flow.git
-cd tap-flow
+git clone https://github.com/qppd/wmldad.git
+cd wmldad
 ```
 
 ---
@@ -394,8 +394,8 @@ Each ESP32 gets its own power supply:
 
 ```bash
 # Clone the web dashboard
-git clone https://github.com/qppd/tapflow-web.git
-cd tapflow-web
+git clone https://github.com/qppd/wmldad-web.git
+cd wmldad-web
 
 # Install dependencies
 npm install
