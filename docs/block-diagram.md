@@ -59,6 +59,42 @@ graph TB
 
 ---
 
+## Waterline Structure (Plumbing)
+
+```
+Water Tank (500-1000L)
+    │
+    ▼
+Fittings → 1" Pipe
+    │
+    ▼
+Reducer Fittings (1" → 1/2")
+    │
+    ▼
+╔═══════════════════════════════════════════════════╗
+║  MAIN ESP32 CONTROL ZONE                          ║
+║                                                   ║
+║  Solenoid Valve 1 (12V NC) ◄── 2CH Relay IN1     ║
+║       │                                           ║
+║       ▼                                           ║
+║  Flow Sensor (calibrated) ◄── GPIO 34            ║
+║       │                                           ║
+║       ▼                                           ║
+║  Solenoid Valve 2 (12V NC) ◄── 2CH Relay IN2     ║
+╚═══════════════════════════════════════════════════╝
+    │
+    ▼
+T-Connector → 1/2" PPE Pipe
+    │
+    ├──→ Room 1 (Bathroom)
+    ├──→ Room 2 (Kitchen)
+    └──→ Room 3 (Shower)
+```
+
+> **Dual Solenoid Design:** Two solenoid valves in series for redundancy — if one fails stuck open, the other can still shut off water. Flow sensor placed between solenoids for accurate metering of total household consumption.
+
+---
+
 ## Pin Connections
 
 ### Room ESP32s (×3) — RFID + flow sensor + SSR + relay + solenoid

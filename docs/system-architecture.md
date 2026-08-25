@@ -4,8 +4,38 @@
 
 Smart water monitoring system with **per-room leak detection** using **ESP32 mesh (ESP-NOW) → Main ESP32 → WiFi → Firebase → Next.js on Vercel**.
 
-3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking) and a **YF-S201 flow sensor** (leak detection, uncalibrated). Room ESP32s transmit readings wirelessly via **ESP-NOW** to a centralized main ESP32. The main ESP32 controls **2 solenoid valves via relays**, reads a **calibrated flow sensor** (accurate metering), and connects to WiFi to push data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
+3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking) and a **YF-S201 flow sensor** (leak detection, uncalibrated). Room ESP32s transmit readings wirelessly via **ESP-NOW** to a centralized main ESP32. The main ESP32 controls **2 solenoid valves via 2CH relay**, reads a **calibrated flow sensor** (accurate metering), and connects to WiFi to push data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
 
+---
+
+## Waterline Structure (Plumbing)
+
+```
+Water Tank (500-1000L)
+    │
+    ▼
+Fittings → 1" Pipe
+    │
+    ▼
+Reducer Fittings (1" → 1/2")
+    │
+    ▼
+Solenoid Valve 1 (12V NC) ◄── 2CH Relay IN1 (GPIO 19)
+    │
+    ▼
+Flow Sensor (calibrated) ◄── GPIO 34
+    │
+    ▼
+Solenoid Valve 2 (12V NC) ◄── 2CH Relay IN2 (GPIO 18)
+    │
+    ▼
+T-Connector → 1/2" PPE Pipe → Each Room
+    ├──→ Room 1 (Bathroom)
+    ├──→ Room 2 (Kitchen)
+    └──→ Room 3 (Shower)
+```
+
+> **Dual Solenoid Design:** Two solenoid valves in series for redundancy — if one fails stuck open, the other can still shut off water. Flow sensor placed between solenoids for accurate metering of total household consumption.
 
 ---
 

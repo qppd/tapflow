@@ -6,6 +6,37 @@
 
 ---
 
+## Waterline Structure
+
+```
+Water Tank (500-1000L)
+    │
+    ▼
+Fittings → 1" Pipe
+    │
+    ▼
+Reducer Fittings (1" → 1/2")
+    │
+    ▼
+Solenoid Valve 1 (12V NC) ── Main ESP32 (2CH Relay IN1)
+    │
+    ▼
+Flow Sensor (calibrated) ── Main ESP32 (GPIO 34)
+    │
+    ▼
+Solenoid Valve 2 (12V NC) ── Main ESP32 (2CH Relay IN2)
+    │
+    ▼
+T-Connector → 1/2" PPE Pipe → Each Room
+    ├──→ Room 1 (Bathroom)
+    ├──→ Room 2 (Kitchen)
+    └──→ Room 3 (Shower)
+```
+
+> **Design:** Dual solenoid valves in series for redundancy — if one fails, the other can still shut off water. Flow sensor placed between solenoids for accurate metering. T-connectors distribute water to each room using 1/2" PPE pipe.
+
+---
+
 ## 1. Core Components
 
 | # | Item | Qty | Unit (₱) | Total (₱) | Link |
