@@ -21,18 +21,30 @@ graph TB
     subgraph "Room 1 — Bathroom"
         RFID1[MFRC522 RFID<br/>Usage Tracking] --> R1[Room ESP32 #1]
         R1S[Flow Sensor<br/>YF-S201 (leak)] --> R1
+        R1 --> SSR1[Fotek 40A SSR<br/>Room Power]
+        SSR1 --> LIGHTS1[Lights/Fan/Appliances]
+        R1 --> RELAY1[1-ch Relay<br/>Solenoid]
+        RELAY1 --> SOL1[Solenoid Valve<br/>12V NC]
         R1 --> R1E[ESP-NOW Transmitter]
     end
 
     subgraph "Room 2 — Kitchen"
         RFID2[MFRC522 RFID<br/>Usage Tracking] --> R2[Room ESP32 #2]
         R2S[Flow Sensor<br/>YF-S201 (leak)] --> R2
+        R2 --> SSR2[Fotek 40A SSR<br/>Room Power]
+        SSR2 --> LIGHTS2[Lights/Fan/Appliances]
+        R2 --> RELAY2[1-ch Relay<br/>Solenoid]
+        RELAY2 --> SOL2[Solenoid Valve<br/>12V NC]
         R2 --> R2E[ESP-NOW Transmitter]
     end
 
     subgraph "Room 3 — Shower"
         RFID3[MFRC522 RFID<br/>Usage Tracking] --> R3[Room ESP32 #3]
         R3S[Flow Sensor<br/>YF-S201 (leak)] --> R3
+        R3 --> SSR3[Fotek 40A SSR<br/>Room Power]
+        SSR3 --> LIGHTS3[Lights/Fan/Appliances]
+        R3 --> RELAY3[1-ch Relay<br/>Solenoid]
+        RELAY3 --> SOL3[Solenoid Valve<br/>12V NC]
         R3 --> R3E[ESP-NOW Transmitter]
     end
 
@@ -40,10 +52,6 @@ graph TB
         direction TB
         ESPRX[ESP-NOW Receiver<br/>Aggregates Room Data]
         MFS[Calibrated Flow Sensor<br/>YF-S201 (GPIO 34)] --> MAIN[Main ESP32]
-        MAIN --> RELAY1[1-ch Relay 10A<br/>Solenoid 1]
-        MAIN --> RELAY2[1-ch Relay 10A<br/>Solenoid 2]
-        RELAY1 --> SOL1[Solenoid Valve 1<br/>12V NC]
-        RELAY2 --> SOL2[Solenoid Valve 2<br/>12V NC]
         ESPRX --> MAIN
         MAIN --> WIFI[WiFi + mobizt<br/>Firebase-ESP-Client]
     end
@@ -191,7 +199,7 @@ LM2596S Buck Converter (12V → 5V)
     └──► RFID / other 5V sensors
 ```
 
-> **Room ESP32s** connect to: MFRC522 RFID (SPI) and YF-S201 flow sensor (GPIO 26, leak detection). **Main ESP32** connects to: calibrated YF-S201 flow sensor (GPIO 34), 2× 1-ch relay (GPIO 25, 13) for solenoid valves, and WiFi. Main ESP32 is centralized before the rooms — controls both solenoid valves and reads calibrated flow sensor.
+> **Room ESP32s** connect to: MFRC522 RFID (SPI, RST→GPIO 21), YF-S201 flow sensor (GPIO 26), Fotek 40A SSR (GPIO 27, room power), and 1-ch relay (GPIO 25, solenoid). **Main ESP32** connects to: calibrated YF-S201 flow sensor (GPIO 34), 2× 1-ch relay (GPIO 25, 13) for solenoid valves, and WiFi. Main ESP32 is centralized before the rooms — controls both solenoid valves and reads calibrated flow sensor.
 
 ---
 

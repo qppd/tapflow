@@ -61,13 +61,16 @@ graph TB
 
 ## Pin Connections
 
-### Room ESP32s (×3) — RFID + leak detection flow sensor
+### Room ESP32s (×3) — RFID + flow sensor + SSR + relay + solenoid
 
 | Component | Interface | Pins | Notes |
 |-----------|-----------|------|-------|
-| **MFRC522 RFID** | SPI | SDA→GPIO 5, SCK→GPIO 18, MOSI→GPIO 23, MISO→GPIO 19, RST→GPIO 27 | Reads Mifare Classic cards |
+| **MFRC522 RFID** | SPI | SDA→GPIO 5, SCK→GPIO 18, MOSI→GPIO 23, MISO→GPIO 19, RST→GPIO 21 | Reads Mifare Classic cards |
 | **YF-S201 Flow Sensor** | Digital | GPIO 26 | Leak detection only (uncalibrated) |
+| **Fotek 40A SSR** | Digital | GPIO 27 | Room power — controls lights, fan, appliances |
+| **1-ch Relay 10A** | Digital | GPIO 25 | Solenoid valve control |
 | **Built-in LED** | Digital | GPIO 2 | Status indication |
+| **Power** | 12V jack | 6.5–16V input | Expansion board accepts 12V from switching PSU |
 
 ### Main ESP32 — Centralized Control (WiFi + relays + solenoids + calibrated flow sensor)
 
@@ -107,8 +110,8 @@ Room ESP32 38-Pin Expansion Board
 │  [18] ──────┬── MFRC522 SCK                        │
 │  [23] ──────┬── MFRC522 MOSI                       │
 │  [19] ──────┬── MFRC522 MISO                       │
-│  [27] ──────┬── MFRC522 RST                        │
-│  3.3V ──────┬── MFRC522 VCC                        │
+│  [21] ──────┬── MFRC522 RST                        │
+│  3V   ──────┬── MFRC522 3.3V                       │
 │  GND  ──────┬── MFRC522 GND                        │
 │                                                     │
 │  Flow Sensor (leak detection — uncalibrated):      │
@@ -116,7 +119,22 @@ Room ESP32 38-Pin Expansion Board
 │  5V   ──────┬── YF-S201 VCC (Red)                  │
 │  GND  ──────┬── YF-S201 GND (Black)                │
 │                                                     │
-│  (No SSR, no relay — centralized at main ESP32)    │
+│  SSR (Room Power — lights, fan, appliances):       │
+│  [27] ──────┬── Fotek 40A SSR Input +              │
+│  GND  ──────┬── Fotek 40A SSR Input -              │
+│  SSR OUT1 ──┬── 220V line                          │
+│  SSR OUT2 ──┬── Appliance 1st wire                 │
+│  Appliance 2nd wire ── 220V line                   │
+│                                                     │
+│  Relay (Solenoid Valve):                           │
+│  [25] ──────┬── 1-ch Relay IN                      │
+│  5V   ──────┬── Relay VCC                          │
+│  GND  ──────┬── Relay GND                          │
+│  Relay COM ──┬── Solenoid +                        │
+│  Relay NO  ──┬── PSU + (12V)                       │
+│  Solenoid - ── PSU - (directly)                    │
+│                                                     │
+│  Power: 12V jack input (6.5–16V from PSU)          │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -431,7 +449,7 @@ Each sensor: Red → 5V, Black → GND, Yellow → GPIO 26
 
 | Resource | Description | Link |
 |----------|-------------|------|
-| **Interactive Wiring Diagram** | Cirkit Designer (clickable, zoomable) | [app.cirkitdesigner.com/project/4f173a2b-5656-48ff-b98f-183483fecb1e](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5) |
+| **Interactive Wiring Diagram** | Cirkit Designer (clickable, zoomable) | [app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5) |
 | **Static Wiring Diagram** | PNG image for docs | `../wiring/wmldad.png` |
 
 

@@ -88,7 +88,7 @@
 
 ## Wiring Summary
 
-### Room ESP32 (×3) — each gets RFID + flow sensor (leak detection only)
+### Room ESP32 (×3) — each gets RFID + flow sensor + SSR + relay + solenoid
 
 **MFRC522 RFID (SPI):**
 | RFID Pin | ESP32 Pin |
@@ -97,8 +97,8 @@
 | SCK | GPIO 18 |
 | MOSI | GPIO 23 |
 | MISO | GPIO 19 |
-| RST | GPIO 27 |
-| VCC | 3.3V |
+| RST | GPIO 21 |
+| 3.3V | 3V (expansion board) |
 | GND | GND |
 
 **YF-S201 Flow Sensor (leak detection — uncalibrated):**
@@ -107,6 +107,27 @@
 | Red (VCC) | 5V |
 | Black (GND) | GND |
 | Yellow (Signal) | GPIO 26 |
+
+**Fotek 40A SSR (room power — lights, fan, appliances):**
+| Wire | Pin |
+|------|-----|
+| Input + | GPIO 27 |
+| Input - | GND |
+| Output 1 | 220V line |
+| Output 2 | Appliance1st wire |
+| Appliance 2nd wire | 220V line |
+
+**1-ch Relay 10A (solenoid valve control):**
+| Wire | Pin |
+|------|-----|
+| VCC | 5V |
+| GND | GND |
+| IN | GPIO 25 |
+| COM | Solenoid + |
+| NO | PSU + (12V) |
+| Solenoid - | PSU - (directly) |
+
+**Power:** Expansion board jack input → 12V switching PSU (accepts 6.5–16V)
 
 ### Main ESP32 — WiFi + Firebase + Centralized Control
 
