@@ -1,4 +1,4 @@
-# Flowchart — Water Meter with Leak Detection (ESP32 to USB Serial to RPi Backend)
+# Flowchart — Water Meter with Leak Detection (ESP-NOW + WiFi → Firebase)
 
 ## 1. Main System Flow (High-Level)
 
@@ -9,39 +9,27 @@
 
 ```mermaid
 flowchart TD
-    Start((Start)) --> Init[ESP32 Initialization]
-    Init --> Sensors[Initialize 4 Flow Sensors and Attach ISRs]
-    Sensors --> SerialInit[Initialize USB Serial at 921600 baud]
-    SerialInit --> MainLoop[Enter Main Loop]
+    Start((Room ESP32 Start)) --> Init[Initialize Flow Sensor + ESP-NOW]
+    Init --> MainLoop[Enter Main Loop]
     
-    MainLoop --> ReadPulses[Read All Pulse Counters]
-    ReadPulses --> CalcFlow[Calculate Flow Metrics per Fixture]
-    CalcFlow --> UpdateLED[Update Status LEDs]
-    UpdateLED --> LocalRules[Apply Local Leak Rules]
+    MainLoop --> ReadPulses[Read Pulse Counter via ISR]
+    ReadPulses --> CalcFlow[Calculate Flow Rate + Volume]
+    CalcFlow --> LocalRules[Apply Local Leak Rules]
     
-    LocalRules --> Interval{Upload Interval?}
-    Interval -->|Yes| SendSerial[Send JSON to Serial]
-    Interval -->|No| CmdCheck{Command Received?}
+    LocalRules --> Interval{Send Interval 5s?}
+    Interval -->|Yes| SendESPNOW[Send Data via ESP-NOW to Main]
+    Interval -->|No| MainLoop
     
-    SendSerial --> ClearBuf[Clear Local Buffer]
-    ClearBuf --> CmdCheck
-    
-    CmdCheck -->|Yes| ExecCmd[Execute Command]
-    CmdCheck -->|No| MainLoop
-    
-    ExecCmd -->|Calibrate| CalMode[Enter Calibration Mode]
-    ExecCmd -->|Reboot| Reboot[Reboot ESP32]
-    ExecCmd -->|Set PPL| SetPPL[Update PPL Values]
-    CalMode --> MainLoop
-    Reboot --> Start
-    SetPPL --> MainLoop
+    SendESPNOW --> MainLoop
 ```
+
+> Room ESP32s transmit wirelessly via ESP-NOW. The main ESP32 aggregates and pushes to Firebase via WiFi.
 
 </details>
 
 ---
 
-## 2. USB Serial Data Flow (ESP32 to RPi)
+## 2. Main ESP32 → Firebase Data Flow
 
 > Mermaid-based diagram (SVG export removed; source below)
 
@@ -50,40 +38,38 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph ESP32["ESP32 (Arduino Serial)"]
-        ESP_Read[/Read Sensors/] --> ESP_Build[Build JSON Payload]
-        ESP_Build --> ESP_Serial[Serial Println JSON]
-        ESP_Cmd[/Read Serial/] --> ESP_CmdCheck{New Command?}
-        ESP_CmdCheck -->|calibrate| ESP_Cal[Enter Calibration]
-        ESP_CmdCheck -->|reboot| ESP_Reboot[Reboot ESP32]
-        ESP_CmdCheck -->|set_ppl| ESP_SetPPL[Update PPL]
+    subgraph Rooms["Room ESP32s x3"]
+        RFID1[RFID] --> ESP1[Room 1]
+        R1[Flow Sensor] --> ESP1
+        ESP1 --> SSR1[SSR + Solenoid]
+        ESP1 --> TX1[ESP-NOW TX]
+
+        RFID2[RFID] --> ESP2[Room 2]
+        R2[Flow Sensor] --> ESP2
+        ESP2 --> SSR2[SSR + Solenoid]
+        ESP2 --> TX2[ESP-NOW TX]
+
+        RFID3[RFID] --> ESP3[Room 3]
+        R3[Flow Sensor] --> ESP3
+        ESP3 --> SSR3[SSR + Solenoid]
+        ESP3 --> TX3[ESP-NOW TX]
     end
-    
-    subgraph USB["USB Cable (CDC/ACM)"]
-        ESP_Serial --> USB_Data[JSON Lines at 921600 baud]
-        USB_Cmd[Commands from RPi] --> ESP_Cmd
+
+    subgraph Main["Main ESP32"]
+        TX1 -.->|wireless| RX[ESP-NOW RX]
+        TX2 -.->|wireless| RX
+        TX3 -.->|wireless| RX
+        RX --> AGG[Aggregate Room Data]
+        AGG --> WIFI[WiFi + mobizt SDK]
     end
-    
-    subgraph RPi["RPi Backend (pyserial + asyncio)"]
-        USB_Data --> RPi_Reader[Serial Reader Thread]
-        RPi_Reader --> RPi_Parse[JSON Parser]
-        RPi_Parse --> RPi_Features[Extract Features]
-        RPi_Features --> RPi_XGB[XGBoost Inference]
-        RPi_Features --> RPi_IF[Isolation Forest]
-        RPi_XGB --> RPi_Leak{Leak Detected?}
-        RPi_IF --> RPi_Leak
-        RPi_Leak -->|Yes| RPi_Alert[Write Alert to DB]
-        RPi_Leak -->|No| RPi_Log[Log Normal]
-        RPi_Alert --> RPi_Notify[In-App Notification]
-        
-        RPi_Cmd[Dashboard Command] --> USB_Cmd
+
+    subgraph Firebase["Firebase Cloud"]
+        WIFI -.->|WiFi + mobizt| RTDB[(Realtime Database)]
+        AUTH[Firebase Auth] --> NEXTJS
     end
-    
-    subgraph User["User Interface"]
-        User_Dash[/Web Dashboard/] --> RPi_Log
-        User_Dash --> RPi_Alert
-        User_Alert[/In-App Alert/] --> RPi_Notify
-        User_Cmd[/User Command/] --> RPi_Cmd
+
+    subgraph Vercel["Vercel Hosting"]
+        RTDB --> NEXTJS[Next.js Dashboard]
     end
 ```
 
@@ -91,7 +77,102 @@ flowchart LR
 
 ---
 
-## 3. ESP32 ISR Pulse Processing
+## 3. RFID Tap + Smart Solenoid Control
+
+> Mermaid-based diagram (SVG export removed; source below)
+
+<details>
+<summary><b> Mermaid Source</b> (click to expand)</summary>
+
+```mermaid
+flowchart TD
+    Start((Customer Enters Room)) --> Tap[Tap RFID Card on MFRC522]
+    Tap --> Read[Read Card UID]
+    Read --> Valid{Valid Card for This Room?}
+    
+    Valid -->|No| Deny[LED Red Blink - Access Denied]
+    Deny --> Start
+    
+    Valid -->|Yes| SSR_ON[SSR ON - Room Powered]
+    SSR_ON --> SOL_ON[Solenoid ON - Water Flows]
+    SOL_ON --> LED_G[LED Green - Session Active]
+    
+    LED_G --> FlowCheck{Flow Sensor Active?}
+    
+    FlowCheck -->|Flow Detected| SOL_STAY[Solenoid Stays ON]
+    SOL_STAY --> FlowCheck
+    
+    FlowCheck -->|No Flow for N sec| SOL_OFF[Solenoid OFF - Prevent Overheating]
+    SOL_OFF --> WaitFlow{Flow Detected?}
+    
+    WaitFlow -->|Yes| SOL_ON2[Solenoid ON Again]
+    SOL_ON2 --> FlowCheck
+    
+    WaitFlow -->|Timeout X min| SSR_OFF[SSR OFF - Session Ends]
+    SSR_OFF --> End((Room Powers Off))
+    
+    FlowCheck -->|Leak Detected| EMERGENCY[Emergency: SSR OFF + Solenoid OFF]
+    EMERGENCY --> Alert[Send Alert via ESP-NOW]
+    Alert --> End
+```
+
+</details>
+
+> **Smart Solenoid Logic:** The solenoid is ONLY energized when the flow sensor detects water usage. When no flow is detected for N seconds, the solenoid automatically turns OFF to prevent overheating. It turns back ON when flow resumes. This allows continuous water use without damaging the solenoid.
+
+---
+
+## 4. Leak Detection Rules (6 Scenarios)
+
+> Mermaid-based diagram (SVG export removed; source below)
+
+<details>
+<summary><b> Mermaid Source</b> (click to expand)</summary>
+
+```mermaid
+flowchart TD
+    Check{Flow Detected?}
+    Check -->|No Flow| OK[Normal - No Leak]
+    Check -->|Flow > 0.01 L/min| Rule1{RFID Session Active?}
+    
+    Rule1 -->|No Session| LEAK1[LEAK: No Customer + Flow = Pipe Burst / Broken Fitting]
+    Rule1 -->|Session Active| Rule2{Solenoid ON?}
+    
+    Rule2 -->|Solenoid OFF| LEAK2[LEAK: Solenoid Stuck Open = Hardware Failure]
+    Rule2 -->|Solenoid ON| Rule3{Flow Duration?}
+    
+    Rule3 -->|Less than 30 min| Rule4{Flow Rate?}
+    Rule3 -->|More than 30 min| LEAK3[LEAK: Continuous Flow = Stuck Valve / Running Toilet]
+    
+    Rule4 -->|0.1 - 0.5 L/min for 5+ min| LEAK4[LEAK: Drip = Loose Fitting / Dripping Faucet]
+    Rule4 -->|Normal usage| Rule5{Night Time 22:00-05:00?}
+    
+    Rule5 -->|Yes + No Session| LEAK5[LEAK: Night Flow = Suspicious / Unauthorized Use]
+    Rule5 -->|No| OK2[Normal Usage - Session Active]
+    
+    LEAK1 --> EMERGENCY[Emergency Shutoff: SSR OFF + Solenoid OFF]
+    LEAK2 --> EMERGENCY
+    LEAK3 --> EMERGENCY
+    LEAK4 --> EMERGENCY
+    LEAK5 --> EMERGENCY
+    EMERGENCY --> ALERT[Send Alert via ESP-NOW to Main ESP32]
+```
+
+</details>
+
+> **6 Leak Detection Scenarios:**
+> 1. **No RFID + Flow** = No customer in room but water flowing → CRITICAL
+> 2. **Solenoid OFF + Flow** = Valve closed but flow persists → Hardware failure
+> 3. **Continuous flow > 30 min** = Stuck valve / running toilet
+> 4. **Drip (0.1–0.5 L/min) > 5 min** = Slow leak from loose fitting
+> 5. **Night flow (22:00–05:00) no session** = Suspicious unauthorized usage
+> 6. **Session ended + Flow** = Customer left but water continues → Solenoid stuck open
+>
+> **All rules trigger emergency shutoff:** SSR OFF + Solenoid OFF + Alert sent to Firebase → Next.js dashboard.
+
+---
+
+## 5. ESP32 ISR Pulse Processing
 
 > Mermaid-based diagram (SVG export removed; source below)
 
@@ -114,7 +195,7 @@ flowchart TD
 
 ---
 
-## 4. RPi Feature Extraction Pipeline
+## 4. Firebase RTDB Data Structure
 
 > Mermaid-based diagram (SVG export removed; source below)
 
@@ -126,37 +207,26 @@ flowchart TD
     Raw[/Raw Serial JSON/] --> Parse[Parse JSON]
     Parse --> Loop{For Each Fixture}
     Loop -->|Fixture 1-3| Extract[Extract Raw Metrics]
-    Extract --> Compute[Compute Features]
+    Extract --> Compute[Compute Derived Metrics]
     
     Compute --> F1[flow_rate L/min]
-    Compute --> F2[duration_seconds]
-    Compute --> F3[hour_of_day]
-    Compute --> F4[day_of_week]
-    Compute --> F5[fixture_id]
-    Compute --> F6[inlet_fixture_ratio]
-    Compute --> F7[rate_variance_10s]
-    Compute --> F8[is_night_time]
-    Compute --> F9[pulse_trend]
+    Compute --> F2[volume_ml]
+    Compute --> F3[inlet_balance]
+    Compute --> F4[continuous_flow_duration]
     
-    F1 --> Vector[Feature Vector - 9 features]
-    F2 --> Vector
-    F3 --> Vector
-    F4 --> Vector
-    F5 --> Vector
-    F6 --> Vector
-    F7 --> Vector
-    F8 --> Vector
-    F9 --> Vector
+    F1 --> Rules[Local Leak Rules]
+    F2 --> Rules
+    F3 --> Rules
+    F4 --> Rules
     
-    Vector --> Scale[Scale and Normalize]
-    Scale --> Model[ML Models - XGBoost + Isolation Forest]
+    Rules --> Decision{Leak Detected?}
 ```
 
 </details>
 
 ---
 
-## 5. ML Inference & Decision Flow
+## 5. Local Leak Detection Rules
 
 > Mermaid-based diagram (SVG export removed; source below)
 
@@ -165,31 +235,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Features[/Feature Vector - 9 features/] --> XGB[XGBoost Predict]
-    XGB --> Probs[Class Probabilities]
-    Probs --> Argmax{argmax Class}
+    Features[/Sensor Readings/] --> Rule1{Inlet Balance OK?}
+    Rule1 -->|Yes| Rule2{Continuous Flow > 30 min?}
+    Rule1 -->|No| Alert1[Hidden Leak Alert]
     
-    Argmax -->|normal conf GT 0.80| Normal[Normal Usage]
-    Argmax -->|minor_leak conf GT 0.70| Minor[Minor Leak]
-    Argmax -->|major_leak conf GT 0.85| Major[Major Leak]
-    Argmax -->|low confidence LT 0.70| Uncertain[Uncertain]
+    Rule2 -->|Yes| Alert2[Stuck Valve Alert]
+    Rule2 -->|No| Rule3{Drip 0.1-0.5 L/min > 5 min?}
     
-    Uncertain --> IF[Isolation Forest Anomaly Score]
-    IF --> IF_Thresh{Score GT Threshold?}
-    IF_Thresh -->|Yes| Anomaly[Anomaly Detected]
-    IF_Thresh -->|No| Wait[Wait for More Data]
+    Rule3 -->|Yes| Alert3[Drip Leak Alert]
+    Rule3 -->|No| OK[Normal - No Leak]
     
-    Minor --> MinorCount{Consecutive GE 3?}
-    MinorCount -->|Yes| ConfirmedMinor[Confirmed Minor Leak]
-    MinorCount -->|No| WatchMinor[Increment Counter and Watch]
+    Alert1 --> Notify[In-App Notification]
+    Alert2 --> Notify
+    Alert3 --> Notify
     
-    Major --> ConfirmedMajor[Confirmed Major Leak]
-    Anomaly --> Alert[Write Alert to DB]
-    ConfirmedMinor --> Alert
-    ConfirmedMajor --> Alert
-    
-    Alert --> Notify[In-App Notification]
-    Alert --> Cmd[Send Command via Serial]
+    Notify --> Cmd[Send Command via Serial]
 ```
 
 </details>
@@ -284,26 +344,22 @@ flowchart LR
     %% USB Layer
     SerialOut -->|USB CDC/ACM 921600 baud| USB[USB Cable]:::usb
     
-    %% Backend Layer
-    USB -->|pyserial| PySerial[/PySerial Reader/]:::backend
-    PySerial --> Parser[JSON Parser]:::backend
-    Parser --> Features[Feature Extraction]:::backend
-    Features --> XGB[XGBoost Inference]:::ml
-    Features --> IF[Isolation Forest Anomaly]:::ml
-    XGB --> AlertEngine[Alert Engine]:::backend
-    IF --> AlertEngine
+    %% Firebase Layer
+    SerialOut -->|WiFi + mobizt| Firebase[Firebase RTDB]:::backend
+    Firebase --> Parser[JSON Parser]:::backend
+    Parser --> LocalRules[Local Leak Rules]:::backend
+    LocalRules --> AlertEngine[Alert Engine]:::backend
     AlertEngine --> Notify[In-App Notification]:::user
-    AlertEngine --> DB[(SQLite/InfluxDB)]:::backend
+    AlertEngine --> FB[(Firebase RTDB)]:::backend
     
     %% User Layer
-    DB --> Dashboard[Web Dashboard]:::user
+    FB --> Dashboard[Next.js Dashboard on Vercel]:::user
     USB -->|Commands| CmdHandler[Command Handler]:::firmware
     
     classDef physical fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
     classDef firmware fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef usb fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef ml fill:#fce4ec,stroke:#c62828,stroke-width:2px
     classDef user fill:#fffde7,stroke:#f9a825,stroke-width:2px
 ```
 

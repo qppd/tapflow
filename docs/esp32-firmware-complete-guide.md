@@ -1,10 +1,11 @@
-# ESP32 Firmware Complete Guide — USB Serial to RPi
+# ESP32 Firmware Complete Guide — ESP-NOW + Firebase (mobizt)
 
-> **Target:** ESP32 Dev Module (38-pin) with Expansion Board  
-> **Sensors:** 4× YF-S201 Flow Sensors (1 inlet + 3 fixtures)  
-> **Communication:** USB Serial (CDC/ACM) JSON Lines @ 921600 baud  
-> **IDE:** Arduino IDE 2.x on Raspberry Pi OS Trixie 64-bit (or Windows/macOS)  
-> **Library:** ArduinoJson (≥ 7.x)  
+> **Target:** 3 Room ESP32s + 1 Main ESP32 (38-pin Dev Module with Expansion Board)  
+> **Sensors:** 3× YF-S201 Flow Sensors (1 per room), 3× MFRC522 RFID  
+> **Communication:** ESP-NOW (room→main) + WiFi → Firebase RTDB (mobizt Firebase-ESP-Client)  
+> **Relay:** Fotek 40A SSR per room for solenoid valve control (local leak shutoff)  
+> **IDE:** Arduino IDE 2.x (Windows/macOS/Linux)  
+> **Libraries:** ArduinoJson (≥ 7.x), MFRC522, Firebase-ESP-Client by mobizt (≥ 4.x), ESP-NOW (built-in)  
 > **Audience:** Complete setup from hardware to deployed firmware
 
 ---
@@ -12,7 +13,7 @@
 ## Table of Contents
 
 1. [Hardware Overview](#hardware-overview)
-2. [Arduino IDE Installation on Raspberry Pi OS Trixie](#arduino-ide-installation-on-raspberry-pi-os-trixie)
+2. [Arduino IDE Installation](#arduino-ide-installation)
 3. [ESP32 Board Support Configuration](#esp32-board-support-configuration)
 4. [ArduinoJson Library Setup](#arduinojson-library-setup)
 5. [Firmware Architecture & File Structure](#firmware-architecture--file-structure)
@@ -29,30 +30,41 @@
 
 ## Hardware Overview
 
+### Room ESP32s (×3)
+
 | Component | Qty | Key Specs |
 |-----------|-----|-----------|
-| **ESP32 Dev Module** | 1 | 38-pin, CP2102/CH340 USB-UART, 4 MB Flash |
+| **ESP32 Dev Module** | 3 | 38-pin, CP2102/CH340, 4 MB Flash |
+| **ESP32 Expansion Board** | 3 | Screw terminals for all GPIOs |
+| **MFRC522 RFID Reader** | 3 | SPI, 13.56MHz, reads Mifare Classic |
+| **YF-S201 Flow Sensor** | 3 | 1/2" NPT, Hall effect, 5V, ~450 pulses/L |
+| **Fotek 40A SSR** | 3 | DC control, powers room electrical line |
+| **1-ch Relay 10A** | 3 | Optocoupler, controls solenoid valve |
+| **Solenoid Valve 1/2" NC** | 3 | 12V DC, normally closed |
+
+| Room ESP32 | Room | Flow GPIO | SSR GPIO | Relay GPIO | RFID Interface |
+|------------|------|-----------|----------|------------|----------------|
+| #1 | Bathroom | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
+| #2 | Kitchen | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
+| #3 | Shower | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
+
+### Main ESP32
+
+| Component | Qty | Key Specs |
+|-----------|-----|-----------|
+| **ESP32 Dev Module** | 1 | 38-pin, CP2102/CH340, 4 MB Flash |
 | **ESP32 Expansion Board** | 1 | Screw terminals for all GPIOs |
-| **YF-S201 Flow Sensor** | 4 | 1/2" NPT, Hall effect, 5V, ~450 pulses/L |
-| **Check Valve 1/2"** | 3 | Brass/PVC, prevents backflow between fixtures |
-| **12V 5A PSU + LM2596S Buck** | 1 | 220V → 12V → 5V for ESP32 + sensors |
-| **IP67 ABS Enclosure** | 1 | 175×125×75mm, cable glands + USB gland |
 
-### Pin Connections
+| Component | Interface | Notes |
+|-----------|-----------|-------|
+| USB Serial | CDC/ACM | Debug / firmware upload only |
+| Built-in LED | GPIO 2 | Status indication |
 
-| Sensor | GPIO | Expansion Board Terminal | Notes |
-|--------|------|-------------------------|-------|
-| **Inlet (Main)** | 26 | D26 | Primary flow measurement |
-| **Fixture 1: Bidet** | 25 | D25 | Bathroom bidet |
-| **Fixture 2: Kitchen** | 33 | D33 | Kitchen faucet |
-| **Fixture 3: Shower** | 32 | D32 | Bathroom shower |
-| **Built-in LED** | 2 | Onboard | Status indication |
-
-> 📸 **Screenshot Placeholder:** *Expansion board wiring diagram showing 4 sensor connections to GPIOs 26, 25, 33, 32 with shared 5V/GND rails*
+> **Note:** Main ESP32 has no SSR — each room controls its own solenoid valve independently via local leak rules.
 
 ---
 
-## Arduino IDE Installation on Raspberry Pi OS Trixie
+## Arduino IDE Installation
 
 ### Method: `pip install arduino` (Recommended)
 
@@ -163,7 +175,7 @@ src/
 ├── water-meter.ino          # Main sketch (setup + loop)
 ├── config.h                 # ALL parameters (WiFi, sensors, timing)
 ├── config.example.h         # Template for git (copy to config.h)
-├── sensor_manager.h         # 4× ISR pulse counters + flow calc
+├── sensor_manager.h         # Single ISR pulse counter + flow calc
 ├── flow_sensor.h            # Single sensor class
 ├── serial_comm.h            # USB Serial JSON sender/receiver
 ├── local_rules.h            # Offline leak detection
@@ -242,7 +254,7 @@ void loop() {
     wifiManager.loop();
     otaUpdater.loop();
     
-    // 2. Check for incoming commands from RPi
+    // 2. Check for incoming commands from Firebase (via mobizt stream)
     if (Serial.available()) {
         serialComm.handleCommand();
     }
@@ -317,8 +329,8 @@ private:
         }
     }
 
-    const uint8_t sensorPins[4] = {PIN_INLET, PIN_FIXTURE1, PIN_FIXTURE2, PIN_FIXTURE3};
-    float ppl[4] = {PPL_INLET, PPL_FIXTURE1, PPL_FIXTURE2, PPL_FIXTURE3};  // From config.h
+    const uint8_t sensorPin = PIN_SENSOR;
+    float ppl = PPL_SENSOR;  // From config.h
     
     volatile uint32_t pulseCount[4] = {0};
     volatile uint32_t lastPulseTime[4] = {0};
@@ -338,34 +350,30 @@ private:
 **Format:** JSON Lines (newline-delimited JSON)  
 **Encoding:** UTF-8
 
-### Data Frame (ESP32 → RPi, every 5 sec)
+### Room → Main (ESP-NOW, every 5 sec)
 
 ```json
-{"device_id":"wmldad-001","ts":1703123456789,"sensor":1,"gpio":26,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456}
-{"device_id":"wmldad-001","ts":1703123456789,"sensor":2,"gpio":25,"pulses":89,"flow_rate_lpm":1.65,"volume_ml":321}
-{"device_id":"wmldad-001","ts":1703123456789,"sensor":3,"gpio":33,"pulses":0,"flow_rate_lpm":0.00,"volume_ml":0}
-{"device_id":"wmldad-001","ts":1703123456789,"sensor":4,"gpio":32,"pulses":203,"flow_rate_lpm":3.80,"volume_ml":720}
+{"room_id":1,"ts":1703123456789,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456,"leak_alert":false}
 ```
 
-### Alert Frame (ESP32 Local Detection → RPi)
+### Main ESP32 → Firebase RTDB (WiFi + mobizt)
 
 ```json
-{"device_id":"wmldad-001","ts":1703123456789,"type":"alert","level":"major_leak","sensor":3,"flow_rate_lpm":15.2,"duration_sec":45,"message":"Major leak detected on Fixture 2"}
+{"device_id":"wmldad-main","ts":1703123456789,"rooms":[{"room_id":1,"flow_rate_lpm":2.34},{"room_id":2,"flow_rate_lpm":0.0},{"room_id":3,"flow_rate_lpm":1.12}]}
 ```
 
-### Status Frame (Periodic, every 30 sec)
+### Alert Frame (leak detected)
 
 ```json
-{"device_id":"wmldad-001","ts":1703123456789,"type":"status","uptime_sec":3600,"free_heap":245760,"wifi_rssi":-45,"sensors_ok":true}
+{"device_id":"wmldad-main","ts":1703123456789,"type":"alert","level":"major_leak","room_id":2,"flow_rate_lpm":15.2,"message":"Major leak in Kitchen"}
 ```
 
-### Command Frame (RPi → ESP32)
+### Command Frame (Firebase → Main ESP32 via mobizt stream)
 
 ```json
-{"cmd":"calibrate","sensor":1,"k_factor":7.5}
+{"cmd":"shutoff","room_id":1}
+{"cmd":"calibrate","room_id":2,"ppl":450}
 {"cmd":"reset_counters"}
-{"cmd":"sleep","duration_sec":300}
-{"cmd":"reboot"}
 ```
 
 ### Serial Communication Handler (`serial_comm.h`)
@@ -381,7 +389,7 @@ public:
         doc["ts"] = millis();  // Use NTP time if available
         
         const char* sensorNames[4] = {"inlet", "bidet", "kitchen", "bathroom_shower"};
-        const uint8_t sensorPins[4] = {PIN_INLET, PIN_FIXTURE1, PIN_FIXTURE2, PIN_FIXTURE3};
+        const uint8_t sensorPin = PIN_SENSOR;
         
         for (int i = 0; i < 4; i++) {
             JsonObject s = doc[sensorNames[i]].to<JsonObject>();
@@ -468,55 +476,127 @@ public:
 
 ## Local Leak Detection Rules (Offline Fallback)
 
-Runs on ESP32 without RPi connection — critical for immediate alerting.
+Runs on ESP32 locally — critical for immediate alerting, even without WiFi.
 
 ```cpp
-// local_rules.h — Runs on ESP32 without RPi
+// local_rules.h — Runs on each room ESP32
+// Handles RFID session + smart solenoid + leak detection:
+
 class LocalRules {
 public:
-    void checkAll() {
-        // Rule 1: Hidden leak (inlet > sum of fixtures + 10%)
-        float inletVolume = sensorManager.getVolume(0);
-        float sumFixtures = sensorManager.getVolume(1) + sensorManager.getVolume(2) + sensorManager.getVolume(3);
-        if (inletVolume > sumFixtures * 1.10) {
-            triggerAlert("hidden_leak", inletVolume - sumFixtures);
-        }
-
-        // Rule 2: Continuous flow > 30 min (stuck valve / running toilet)
-        for (int i = 1; i <= 3; i++) {
-            if (sensorManager.getFlowRate(i) > 0.01 && sensorManager.getContinuousTime(i) > 30 * 60) {
-                triggerAlert("continuous_flow", i);
+    void checkAll(float flowRate, float continuousTime) {
+        unsigned long now = millis();
+        
+        // === SMART SOLENOID CONTROL ===
+        // Only energize solenoid when water is actually flowing
+        // This prevents solenoid overheating from continuous energization
+        
+        if (sessionActive) {
+            if (flowRate > 0.01) {
+                // Water flowing — keep solenoid ON
+                lastFlowTime = now;
+                digitalWrite(PIN_RELAY, HIGH);
+            } else if (now - lastFlowTime > SOLENOID_OFF_DELAY_MS) {
+                // No flow for N sec — turn solenoid OFF (prevent heating)
+                digitalWrite(PIN_RELAY, LOW);
+            }
+            
+            // Session timeout (no activity for X min)
+            if (now - lastFlowTime > SESSION_TIMEOUT_MS) {
+                endSession();
             }
         }
-
-        // Rule 3: Drip detection (0.1–0.5 L/min for > 5 min)
-        for (int i = 1; i <= 3; i++) {
-            float rate = sensorManager.getFlowRate(i);
-            if (rate > 0.1 && rate < 0.5 && sensorManager.getContinuousTime(i) > 5 * 60) {
-                triggerAlert("drip_leak", i);
-            }
+        
+        // ============================================
+        // === LEAK DETECTION RULES ===
+        // ============================================
+        
+        // RULE 1: NO RFID + FLOW DETECTED = LEAK
+        // No customer in room (no valid session) but water is flowing
+        // This is the most common leak scenario: broken pipe, stuck valve, etc.
+        if (!sessionActive && flowRate > 0.01) {
+            triggerAlert("no_session_flow");  // Critical: unknown water flow
+            emergencyShutoff();
         }
-
-        // Rule 4: Sensor fault (inlet flows but fixture reads 0)
-        if (sensorManager.getFlowRate(0) > 1.0) {
-            for (int i = 1; i <= 3; i++) {
-                if (sensorManager.getFlowRate(i) == 0) {
-                    triggerAlert("sensor_fault", i);
-                }
-            }
+        
+        // RULE 2: SESSION ENDED + FLOW CONTINUES = LEAK
+        // Customer left (SSR OFF) but water still flowing
+        // Solenoid should be closed — if flow persists, solenoid is stuck open
+        if (!sessionActive && !solenoidOn && flowRate > 0.01) {
+            triggerAlert("post_session_flow");  // Solenoid stuck open
+            emergencyShutoff();
+        }
+        
+        // RULE 3: SOLENOID OFF + FLOW DETECTED = LEAK
+        // Solenoid is commanded OFF but flow sensor still reads water
+        // Means solenoid is physically stuck open or pipe burst downstream
+        if (!solenoidOn && flowRate > 0.01) {
+            triggerAlert("solenoid_stuck_open");  // Critical hardware failure
+            emergencyShutoff();
+        }
+        
+        // RULE 4: CONTINUOUS FLOW > 30 MIN = STUCK VALVE / RUNNING TOILET
+        // Even with active session, flowing for 30+ min is abnormal
+        if (flowRate > 0.01 && continuousTime > 30 * 60) {
+            triggerAlert("continuous_flow");
+            emergencyShutoff();
+        }
+        
+        // RULE 5: DRIP LEAK (0.1–0.5 L/min for > 5 MIN)
+        // Slow, steady trickle — dripping faucet, loose fitting
+        if (flowRate > 0.1 && flowRate < 0.5 && continuousTime > 5 * 60) {
+            triggerAlert("drip_leak");
+            emergencyShutoff();
+        }
+        
+        // RULE 6: NIGHT FLOW (22:00–05:00) WITH NO SESSION = SUSPICIOUS
+        // Water usage during sleeping hours with no authorized user
+        if (!sessionActive && isNightTime() && flowRate > 0.01) {
+            triggerAlert("night_flow");  // Possible unauthorized use or leak
+            emergencyShutoff();
         }
     }
+    
+    void startSession() {
+        sessionActive = true;
+        lastFlowTime = millis();
+        digitalWrite(PIN_SSR, HIGH);        // Room powered ON (electrical line)
+        digitalWrite(PIN_RELAY, HIGH);      // Solenoid ON (water flows)
+        solenoidOn = true;
+    }
+    
+    void endSession() {
+        sessionActive = false;
+        digitalWrite(PIN_RELAY, LOW);       // Solenoid OFF first (stop water)
+        digitalWrite(PIN_SSR, LOW);         // Room powered OFF
+        solenoidOn = false;
+    }
+    
+    void emergencyShutoff() {
+        digitalWrite(PIN_RELAY, LOW);       // Solenoid OFF (stop water)
+        digitalWrite(PIN_SSR, LOW);         // Room OFF
+        sessionActive = false;
+        solenoidOn = false;
+    }
 
-    void triggerAlert(const char* type, int detail) {
-        // Log to SPIFFS
-        dataLogger.logAlert(type, detail);
-        // LED pattern: fast blink = local alert
+    void triggerAlert(const char* type) {
+        dataLogger.logAlert(type, ROOM_ID);
         ledIndicator.setPattern(LED_FAST_BLINK);
-        // Send via Serial to RPi
-        serialComm.sendAlert(/* sensor */ detail, type, sensorManager.getFlowRate(detail), sensorManager.getContinuousTime(detail), type);
+        // Send via ESP-NOW to main ESP32 (with leak_alert flag)
     }
 };
 ```
+
+> **6 Leak Detection Rules:**
+> 1. **No RFID + Flow** = No customer but water flowing → CRITICAL leak
+> 2. **Session ended + Flow** = Customer left but water continues → Solenoid stuck open
+> 3. **Solenoid OFF + Flow** = Valve commanded closed but flow persists → Hardware failure
+> 4. **Continuous flow > 30 min** = Stuck valve / running toilet
+> 5. **Drip (0.1–0.5 L/min) > 5 min** = Slow leak from loose fitting / dripping faucet
+> 6. **Night flow (22:00–05:00) no session** = Suspicious unauthorized usage or leak
+>
+> **All leak rules trigger emergency shutoff:** SSR OFF + Solenoid OFF.
+> **All alerts sent via ESP-NOW** to main ESP32 → Firebase RTDB → Next.js dashboard notification.
 
 ---
 
@@ -525,40 +605,67 @@ public:
 ```cpp
 // config.h — ALL parameters in one place
 // Copy config.example.h to config.h and fill in your values
+// For ROOM ESP32s: set ROOM_ID and PIN_SENSOR
+// For MAIN ESP32: set IS_MAIN = true and configure SSR
 
 #pragma once
 
 // ===== Device Identity =====
-#define DEVICE_ID        "wmldad-001"
-#define FIRMWARE_VERSION "v3.0.0-usb"
+#define DEVICE_ID        "wmldad-room1"   // wmldad-room2, wmldad-room3, wmldad-main
+#define FIRMWARE_VERSION "v4.0.0-espnow"
+#define ROOM_ID          1                // 1=bathroom, 2=kitchen, 3=shower
+#define IS_MAIN          false            // true for main ESP32
 
-// ===== WiFi (for OTA + NTP only — not required for serial operation) =====
+// ===== WiFi (main ESP32 connects to WiFi + Firebase) =====
 #define WIFI_SSID        "YourWiFiSSID"
 #define WIFI_PASSWORD    "YourWiFiPassword"
 
+// ===== Firebase (main ESP32 only — mobizt Firebase-ESP-Client) =====
+// Get these from Firebase Console → Project Settings → General
+#define FIREBASE_API_KEY "YOUR_FIREBASE_API_KEY"
+#define FIREBASE_DATABASE_URL "https://your-project.firebaseio.com"
+// Optional: Firebase Auth (if RTDB rules require auth)
+#define FIREBASE_USER_EMAIL "your@email.com"
+#define FIREBASE_USER_PASSWORD "your-password"
+
 // ===== Sensor Calibration (PPL = Pulses Per Liter) =====
 // UPDATE AFTER BUCKET TEST!
-#define PPL_INLET        450   // Update after bucket test
-#define PPL_FIXTURE1     450
-#define PPL_FIXTURE2     450
-#define PPL_FIXTURE3     450
+#define PPL_SENSOR       450
 
-// ===== Sensor Pins =====
-#define PIN_INLET        26
-#define PIN_FIXTURE1     25
-#define PIN_FIXTURE2     33
-#define PIN_FIXTURE3     32
+// ===== Sensor Pin (all room ESP32s use GPIO 26) =====
+#define PIN_SENSOR       26
+
+// ===== Main ESP32 Peer MAC (for ESP-NOW) =====
+// Update with your main ESP32's MAC address
+#define MAIN_ESP_MAC     {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+
+// ===== RFID Reader (MFRC522 SPI) =====
+#define RFID_SS_PIN     5              // SDA/NSS
+#define RFID_RST_PIN    27
+// SPI: SCK=18, MOSI=23, MISO=19 (default ESP32 SPI)
+
+// ===== SSR Relay Pin (per room — powers room electrical line) =====
+#define PIN_SSR          25            // HIGH = room powered, LOW = room off
+
+// ===== Solenoid Relay Pin (per room — 1-ch 10A relay controls solenoid) =====
+#define PIN_RELAY        13            // HIGH = solenoid ON (water flows), LOW = shutoff
+// Solenoid is ONLY energized when flow sensor detects water usage
+// This prevents solenoid overheating from continuous energization
+#define SOLENOID_OFF_DELAY_MS  5000    // Solenoid OFF after 5 sec no flow (prevent heating)
+#define SESSION_TIMEOUT_MS  600000     // Session ends after 10 min no flow
 
 // ===== Timing =====
-#define SEND_INTERVAL_MS 5000      // Serial output every 5 sec
-#define CALIBRATION_TIMEOUT_MS 300000  // 5 min calibration window
+#define SEND_INTERVAL_MS 5000            // ESP-NOW send every 5 sec
+#define CALIBRATION_TIMEOUT_MS 300000    // 5 min calibration window
 
 // ===== Local Leak Thresholds =====
-#define HIDDEN_LEAK_THRESHOLD 1.10   // 10% imbalance
-#define CONTINUOUS_FLOW_MIN 30       // Minutes
-#define DRIP_MIN_RATE 0.1            // L/min
-#define DRIP_MAX_RATE 0.5            // L/min
-#define DRIP_MIN_TIME 5              // Minutes
+#define CONTINUOUS_FLOW_MIN 30           // Minutes — stuck valve / running toilet
+#define DRIP_MIN_RATE 0.1                // L/min
+#define DRIP_MAX_RATE 0.5                // L/min
+#define DRIP_MIN_TIME 5                  // Minutes — drip detection window
+#define NIGHT_START_HOUR 22              // 10 PM — night flow detection starts
+#define NIGHT_END_HOUR 5                 // 5 AM — night flow detection ends
+#define MIN_FLOW_THRESHOLD 0.01          // L/min — minimum detectable flow
 
 // ===== SPIFFS Logging =====
 #define MAX_OFFLINE_LOGS 500
@@ -589,11 +696,13 @@ public:
 
 **Expected Output:**
 ```
-{"status":"ready","device_id":"wmldad-001","firmware":"v3.0.0-usb"}
-{"device_id":"wmldad-001","ts":123456,"sensor":1,"gpio":26,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456}
-{"device_id":"wmldad-001","ts":123456,"sensor":2,"gpio":25,"pulses":89,"flow_rate_lpm":1.65,"volume_ml":321}
-{"device_id":"wmldad-001","ts":123456,"sensor":3,"gpio":33,"pulses":0,"flow_rate_lpm":0.00,"volume_ml":0}
-{"device_id":"wmldad-001","ts":123456,"sensor":4,"gpio":32,"pulses":203,"flow_rate_lpm":3.80,"volume_ml":720}
+// Room ESP32:
+{"status":"ready","device_id":"wmldad-room1","firmware":"v4.0.0-espnow"}
+{"room_id":1,"ts":123456,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456,"leak_alert":false}
+
+// Main ESP32:
+{"status":"ready","device_id":"wmldad-main","firmware":"v4.0.0-espnow"}
+{"rooms":[{"room_id":1,"flow_rate_lpm":2.34},{"room_id":2,"flow_rate_lpm":0.0},{"room_id":3,"flow_rate_lpm":1.12}]}
 ```
 
 ---
@@ -613,7 +722,7 @@ public:
    ```
    Actual PPL = Total Pulse Count ÷ 5
    ```
-7. **Update:** Change `PPL_INLET` in `config.h`
+7. **Update:** Change `PPL_SENSOR` in `config.h`
 8. **Repeat** for each sensor (move sensor to each fixture line)
 
 ### Target
@@ -662,8 +771,8 @@ public:
 ### Trigger OTA Update
 ```bash
 # From any computer on same network
-arduino-cli upload -p wmldad-001.local -b esp32:esp32:esp32 --port network
-# Or use Arduino IDE: Tools → Port → Network ports → wmldad-001
+arduino-cli upload -p wmldad-main.local -b esp32:esp32:esp32 --port network
+# Or use Arduino IDE: Tools → Port → Network ports → wmldad-main
 ```
 
 ---

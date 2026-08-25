@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-> Complete guide for diagnosing and fixing issues with the Water Meter + Leak Detection system (ESP32 → USB Serial → RPi).
+> Complete guide for diagnosing and fixing issues with the Water Meter + Leak Detection system (ESP32 → ESP-NOW → Firebase → Next.js).
 
 ---
 
@@ -145,20 +145,29 @@ ls -la /dev/ttyESP32
 
 ## 4. RPi (Raspberry Pi) Issues
 
-### App Not Loading
+### Dashboard Not Loading (Next.js)
+
+| Cause | Check | Fix |
+|-------|-------|-----|
+| Vercel deployment failed | Check Vercel dashboard → Deployments | Redeploy from Git |
+| Firebase config wrong | Check `.env.local` in Next.js project | Verify API key, database URL |
+| Firebase Auth not enabled | Firebase Console → Authentication | Enable Email/Password + Google |
+| RTDB rules blocking | Firebase Console → Realtime Database → Rules | Set read/write to true for testing |
+
+### RPi Bridge Not Pushing to Firebase
 
 ```bash
-# Check Flask output
-journalctl -u water-meter.service -f
+# Check bridge logs
+journalctl -u wmldad-bridge.service -f
 
-# Check if port 5000 is listening
-sudo netstat -tlnp | grep 5000
+# Check Firebase connection
+python3 -c "import firebase_admin; print('OK')"
 ```
 
 | Problem | Solution |
 |---------|----------|
 | `ModuleNotFoundError` | Activate venv → `pip install -r requirements.txt` |
-| `ImportError: ml_inference` | Check `models/` files exist |
+| `ImportError: serial_reader` | Check imports |
 | `Address already in use` | Kill existing process: `sudo fuser -k 5000/tcp` |
 | `Permission denied` on serial | Add user to dialout group, reboot |
 
@@ -168,71 +177,14 @@ sudo netstat -tlnp | grep 5000
 # Check RAM
 free -h
 
-# Reduce XGBoost memory
-# In ml_inference.py: reduce n_estimators, max_depth
-```
-
-| Problem | Solution |
-|---------|----------|
-| `MemoryError` loading model | Use smaller model (fewer trees), add swap |
-| RPi freezes during inference | Reduce `n_estimators` to 100, `max_depth` to 4 |
-
-### Model Not Found
-
-```bash
-# Verify model files
-ls -la /home/pi/wmldad/rpi/models/
-# Should see: xgboost_model.json, isolation_forest.pkl, scaler.pkl, iso_threshold.pkl, feature_cols.pkl, metadata.json
-
-# If missing, train or copy from training/
-cp /home/pi/wmldad/training/*.json /home/pi/wmldad/rpi/models/
-cp /home/pi/wmldad/training/*.pkl /home/pi/wmldad/rpi/models/
+# Add swap if needed
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
 ```
 
 ---
 
-## 5. ML Model Issues
-
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| All predictions "normal" | Model not trained / loaded | Check `detector.model_loaded` |
-| Too many false positives | Threshold too low | Increase `confidence_threshold` to 0.85 |
-| Misses all leaks | Training data lacks leaks | Add leak samples, retrain |
-| `XGBoost error on import` | Version mismatch | `pip install xgboost==2.0.3` |
-| Isolation Forest always anomaly | `contamination` too high | Reduce to 0.01 or lower |
-| Inference too slow | Too many trees | Reduce `n_estimators` to 100 |
-
-### Model Evaluation Commands
-
-```bash
-# On RPi
-cd /home/pi/wmldad/rpi
-source venv/bin/activate
-
-python3 -c "
-from ml_inference import load_deployment_package
-import numpy as np
-
-pkg = load_deployment_package('models')
-detector = pkg['detector']
-detector.warm_up()
-
-# Test normal
-normal = np.array([[2.5, 30, 14, 2, 1, 1.1, 0.5, 0, 0.1]], dtype=np.float32)
-print('Normal:', detector.predict(normal))
-
-# Test minor leak
-minor = np.array([[0.3, 600, 3, 1, 1, 1.5, 0.01, 1, -0.1]], dtype=np.float32)
-print('Minor leak:', detector.predict(minor))
-
-# Benchmark
-print('Benchmark:', detector.benchmark(100))
-"
-```
-
----
-
-## 6. Plumbing / Mechanical Issues
+## 5. Plumbing / Mechanical Issues
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
@@ -240,11 +192,11 @@ print('Benchmark:', detector.benchmark(100))
 | Sensor not spinning | Debris in turbine | Remove and clean with soft brush |
 | Check valve stuck | Debris or hard water | Disassemble and clean |
 | Leaks at threads | Insufficient Teflon tape | Re-wrap with 3–5 turns PTFE tape |
-| PVC cement failure | Wrong cement / dirty pipe | Use correct PVC cement, clean with primer |
+| PPE joint leak | Insufficient heat fusion | Re-weld with PPR welding machine, ensure proper temperature (260°C) |
 
 ---
 
-## 7. Diagnostic Commands (Serial Monitor)
+## 6. Diagnostic Commands (Serial Monitor)
 
 Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 
@@ -254,8 +206,7 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 | `sensors` | Raw pulse counts per sensor | Debug ISR issues |
 | `config` | Current configuration | Verify settings |
 | `wifi` | WiFi status + IP + RSSI | Network troubleshooting |
-| `firebase` | *(Removed — no Firebase)* | N/A |
-| `queue` | Number of readings pending upload | N/A (local only) |
+
 | `calibrate` | Start calibration mode | For bucket test |
 | `reset` | Reboot ESP32 | Quick restart |
 | `format` | Format SPIFFS storage | Clear corrupted data |
@@ -264,7 +215,7 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 
 ---
 
-## 8. Built-in LED Indicator Reference
+## 7. Built-in LED Indicator Reference
 
 | LED Pattern | Meaning |
 |-------------|---------|
@@ -280,7 +231,7 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 
 ---
 
-## 9. Checklist Before Panicking
+## 8. Checklist Before Panicking
 
 - [ ] Is ESP32 getting power? (LED on?)
 - [ ] Is USB cable a **data cable**? (not charge-only)
@@ -290,12 +241,73 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 - [ ] Is `PULSE_PER_LITER` calibrated for each sensor?
 - [ ] Is the virtual environment activated on RPi?
 - [ ] Did you run `pip install -r requirements.txt`?
-- [ ] Are ML model files in `rpi/models/`?
 - [ ] Is `PULSE_PER_LITER` calibrated for each sensor?
 
 ---
 
-## 10. Getting Help
+## 9. RFID Reader (MFRC522) Issues
+
+### Card Not Detected
+
+| Cause | Check | Fix |
+|-------|-------|-----|
+| Wrong SPI pins | Verify SDA→GPIO 5, SCK→18, MOSI→23, MISO→19, RST→27 | Match config.h to wiring |
+| 3.3V not 5V | MFRC522 runs on 3.3V | Connect VCC to 3.3V, NOT 5V (will damage module) |
+| Loose SPI wires | Reseat all 7 wires | Use shorter wires, check solder joints |
+| Wrong card type | Card must be Mifare Classic 1K/4K | Check card type with RFID phone app |
+| Antenna interference | Metal near reader | Mount reader away from metal surfaces |
+
+### RFID Session Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Card valid but no water | SSR not turning ON | Check PIN_SSR in config.h, verify SSR wiring |
+| Water starts but stops immediately | Session timeout too short | Increase SESSION_TIMEOUT_MS in config.h |
+| Can't end session | Card tap not detected | Ensure card tap triggers endSession() in firmware |
+| Session stays on forever | Timeout not implemented | Add SESSION_TIMEOUT_MS logic to local_rules.h |
+
+### Card Reads Unreliably
+
+| Cause | Fix |
+|-------|-----|
+| Distance too far | Tap card directly on reader (0–3 cm) |
+| Multiple readers crosstalk | Shield readers with aluminum foil, increase distance between rooms |
+| SPI clock too fast | Add `SPI.setFrequency(1000000)` in setup |
+
+---
+
+## 10. SSR + Solenoid Valve Issues
+
+### Solenoid Does Not Open
+
+| Cause | Check | Fix |
+|-------|-------|-----|
+| SSR not firing | Measure GPIO 25 with multimeter (should go HIGH) | Check firmware — PIN_SSR must be defined |
+| SSR wiring wrong | Verify CTRL→GPIO 25, VCC→5V, GND→GND | Rewire per block-diagram.md |
+| Solenoid polarity | DC solenoid has + and - | Swap wires if needed |
+| Insufficient current | 40A SSR can handle it, but check 12V PSU | Ensure PSU provides ≥ 1A for solenoid |
+| SSR defective | Test SSR with multimeter (output side) | Replace SSR |
+
+### Solenoid Does Not Close (Shutoff Fails)
+
+| Cause | Check | Fix |
+|-------|-------|-----|
+| SSR stuck ON | Measure GPIO 25 (should go LOW on leak) | Replace SSR — mechanical welding of contacts |
+| Firmware bug | Check local leak rules trigger shutoff | Debug with Serial Monitor |
+| NC solenoid wrong type | Must be NC (normally closed) | Replace with NC solenoid — NO type will fail-open |
+| Power loss = open | NC solenoid closes on power loss (safe) | Verify solenoid is NC type |
+
+### Solenoid Buzzing / Vibrating
+
+| Cause | Fix |
+|-------|-----|
+| SSR PWM not clean | Ensure GPIO is solid HIGH/LOW, not PWM |
+| Low voltage | Check 12V PSU under load |
+| Mechanical wear | Replace solenoid |
+
+---
+
+## 11. Getting Help
 
 If stuck:
 1. Check `journalctl -u water-meter.service -f` on RPi

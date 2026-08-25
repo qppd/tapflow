@@ -2,9 +2,11 @@
 
 ## Overview
 
-Smart water monitoring system with **fixture-level leak detection** using **ESP32 → USB Serial → RPi → XGBoost ML**.
+Smart water monitoring system with **per-room leak detection** using **ESP32 mesh (ESP-NOW) → Main ESP32 → WiFi → Firebase → Next.js on Vercel**.
 
-The system uses 1 inlet flow sensor to measure total consumption and 3 fixture flow sensors to monitor individual water outlets (bidet, kitchen, bathroom shower). Data flows from the ESP32 to Raspberry Pi via **USB Serial (CDC/ACM)** at 921600 baud. A **Raspberry Pi** backend consumes the serial data using **pyserial**, runs **XGBoost** and **Isolation Forest** ML models, and serves a web dashboard on the 7" touchscreen LCD.
+3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking), a **YF-S201 flow sensor** (consumption), and a **Fotek 40A SSR + solenoid valve** (emergency shutoff). Room ESP32s transmit readings wirelessly via **ESP-NOW** to a main ESP32. The main ESP32 connects to WiFi and pushes data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
+
+> **No Raspberry Pi needed!** ESP32 talks to Firebase directly via WiFi.
 
 ---
 
@@ -17,75 +19,55 @@ The system uses 1 inlet flow sensor to measure total consumption and 3 fixture f
 
 ```mermaid
 graph TB
-    subgraph "Plumbing Layer"
-        A[Main Water Supply] --> B[Inlet Flow Sensor<br/>YF-S201]
-        B --> C[Check Valve]
-        C --> D[Junction]
-        D --> E1[Fixture 1 Sensor]
-        D --> E2[Fixture 2 Sensor]
-        D --> E3[Fixture 3 Sensor]
-        E1 --> CV1[Check Valve] --> F1[Fixture 1]
-        E2 --> CV2[Check Valve] --> F2[Fixture 2]
-        E3 --> CV3[Check Valve] --> F3[Fixture 3]
+    subgraph "Room 1 — Bathroom"
+        RFID1[MFRC522 RFID<br/>Usage Tracking] --> R1[Room ESP32 #1]
+        R1S[Flow Sensor<br/>YF-S201] --> R1
+        R1 --> R1T[Local Leak Rules]
+        R1 --> SSR1[Fotek 40A SSR<br/>Solenoid Control]
+        SSR1 --> SOL1[Solenoid Valve 12V NC]
+        R1 --> R1E[ESP-NOW Transmitter]
     end
 
-    subgraph "ESP32 Edge Layer"
+    subgraph "Room 2 — Kitchen"
+        RFID2[MFRC522 RFID<br/>Usage Tracking] --> R2[Room ESP32 #2]
+        R2S[Flow Sensor<br/>YF-S201] --> R2
+        R2 --> R2T[Local Leak Rules]
+        R2 --> SSR2[Fotek 40A SSR<br/>Solenoid Control]
+        SSR2 --> SOL2[Solenoid Valve 12V NC]
+        R2 --> R2E[ESP-NOW Transmitter]
+    end
+
+    subgraph "Room 3 — Shower"
+        RFID3[MFRC522 RFID<br/>Usage Tracking] --> R3[Room ESP32 #3]
+        R3S[Flow Sensor<br/>YF-S201] --> R3
+        R3 --> R3T[Local Leak Rules]
+        R3 --> SSR3[Fotek 40A SSR<br/>Solenoid Control]
+        SSR3 --> SOL3[Solenoid Valve 12V NC]
+        R3 --> R3E[ESP-NOW Transmitter]
+    end
+
+    subgraph "Main ESP32"
         direction TB
-        Sensors["4× Flow Sensor<br/>Pulse Counters<br/>(ISR + Debounce)"]
-        SerialOut["USB Serial Output<br/>JSON Lines<br/>(921600 baud)"]
-        LocalCtrl["Local Leak Rules<br/>(Threshold-based)"]
-        SPIFFS["SPIFFS Logger<br/>(Offline Buffer)"]
-        
-        Sensors --> SerialOut
-        Sensors --> LocalCtrl
-        Sensors --> SPIFFS
-        LocalCtrl --> SerialOut
+        ESPRX[ESP-NOW Receiver<br/>Aggregates Room Data]
+        WIFI[WiFi + mobizt<br/>Firebase-ESP-Client]
+        ESPRX --> WIFI
     end
 
-    subgraph "USB Connection"
-        USB[USB Cable<br/>CDC/ACM Device<br/>(/dev/ttyUSB0)]
+    subgraph "Firebase Cloud"
+        RTDB[(Firebase Realtime<br/>Database)]
+        Auth[Firebase Authentication<br/>User Login]
     end
 
-    subgraph "RPi Backend"
-        direction TB
-        SerialReader["Serial Reader<br/>(pyserial / asyncio)"]
-        Parser["JSON Parser<br/>Validate + Normalize"]
-        XGB["XGBoost Classifier<br/>normal / minor_leak / major_leak"]
-        ISO["Isolation Forest<br/>Unsupervised Anomaly Detection"]
-        Flask["Flask Web App<br/>Dashboard + API"]
-        AlertEngine["Alert Engine<br/>In-App + Webhook"]
-        Retrain["Daily Retrain Pipeline"]
-        DB["SQLite / InfluxDB<br/>Time-series Storage"]
-        
-        SerialReader --> Parser
-        Parser --> XGB
-        Parser --> ISO
-        Parser --> DB
-        XGB --> Flask
-        ISO --> Flask
-        Flask --> AlertEngine
-        Flask --> Retrain
-        DB --> Flask
+    subgraph "Vercel"
+        NextJS[Next.js App<br/>Web Dashboard]
     end
 
-    subgraph "User Layer"
-        Dashboard["Web Dashboard<br/>Real-time Charts"]
-        Notif["In-App + Webhook<br/>Alerts"]
-        Cmd["Remote Device<br/>Control (via Serial)"]
-    end
-
-    B --> Sensors
-    E1 --> Sensors
-    E2 --> Sensors
-    E3 --> Sensors
-    
-    SerialOut --> USB
-    USB --> SerialReader
-    
-    Flask --> Dashboard
-    AlertEngine --> Notif
-    Dashboard --> Cmd
-    Cmd --> SerialReader
+    R1E -.->|ESP-NOW| ESPRX
+    R2E -.->|ESP-NOW| ESPRX
+    R3E -.->|ESP-NOW| ESPRX
+    WIFI -.->|WiFi + mobizt SDK| RTDB
+    RTDB --> NextJS
+    Auth --> NextJS
 ```
 
 </details>
@@ -95,43 +77,48 @@ graph TB
 ## Data Flow (End-to-End)
 
 ```
-Step 1: SENSING
-        Inlet Sensor (GPIO 26)  
-        Fixture 1 Sensor (25)   
-        Fixture 2 Sensor (33)   
-        Fixture 3 Sensor (32)   
-        Every 1 second:
-        → Read pulse count via ISR
-        → Debounce (5ms)
-        → Calculate flow rate & volume
+Step 1: RFID TAP (per room)
+        Customer taps Mifare card on MFRC522 reader
+        → Validate card against registered cards for this room
+        → If valid: SSR ON (room powered) + Solenoid ON (water flows)
+        → Log RFID tag + timestamp to SPIFFS / send via ESP-NOW
 
-Step 2: LOCAL PROCESSING
-        For each fixture:
-        → flow_rate = (pulse_count * 60) / (PPL * interval_s)
-        → volume = pulse_count / PPL
-        → total_liters += volume
-        → Inlet balance = inlet_volume - sum(fixtures_volume)
-        → Local leak rules (hidden leak, continuous flow, drip)
+Step 2: SMART SOLENOID CONTROL
+        Flow sensor monitors water usage:
+        → Flow detected  = Solenoid stays ON (water in use)
+        → No flow for N sec = Solenoid OFF automatically (prevent heating)
+        → Next flow detected = Solenoid ON again
+        → Solenoid is ONLY energized when water is actually flowing
 
-Step 3: USB SERIAL OUTPUT (every 5 sec)
-        → Build JSON payload with all 4 sensors
-        → Write JSON line to Serial (921600 baud)
-        → Format: {"device_id":"wmldad-001","ts":1703123456789,"sensor":1,"gpio":26,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456}
+Step 3: SESSION END
+        → RFID timeout (no flow for X min) = SSR OFF (room power off)
+        → Customer taps card again = session ends
+        → Leak detected = SSR OFF + Solenoid OFF (emergency shutoff)
 
-Step 4: RPi PROCESSING (pyserial + asyncio)
-        → Auto-detect ESP32 on /dev/ttyUSB0 or /dev/ttyUSB1
-        → Read JSON lines continuously
-        → Parse and validate JSON
-        → Extract features for ML (9 features per fixture)
-        → Run XGBoost inference
-        → Run Isolation Forest anomaly score
-        → Store in SQLite/InfluxDB
-        → If leak detected → write alert + trigger notification
+Step 4: ESP-NOW TRANSMISSION (every 5 sec)
+        Room ESP32 → Main ESP32 (broadcast)
+        → Payload: {room_id, rfid_tag, pulses, flow_rate_lpm, volume_ml,
+                     ssr_state, solenoid_state, leak_alert}
 
-Step 5: USER ACTION
-        → Dashboard displays real-time readings on 7" touchscreen
-        → In-app alert displayed on touchscreen + webhook
-        → User sends command via dashboard → Serial to ESP32
+Step 5: MAIN ESP32 → FIREBASE (WiFi + mobizt)
+        Main ESP32 receives from all 3 rooms via ESP-NOW:
+        → Aggregate room data into Firebase JSON structure
+        → Push to Firebase RTDB using mobizt Firebase-ESP-Client
+        → Path: /rooms/{room_id}/data, /rooms/{room_id}/alerts
+        → Also reads commands from Firebase (remote shutoff, config updates)
+
+Step 6: FIREBASE CLOUD
+        → Realtime Database stores all room data, usage logs, alerts
+        → Firebase Authentication handles user login (email/password or Google)
+        → Real-time sync to all connected clients
+        → ESP32 receives callbacks for remote commands
+
+Step 7: USER ACTION (Next.js on Vercel)
+        → User logs in via Firebase Auth
+        → Dashboard displays real-time readings per room (Firebase RTDB listener)
+        → Usage logs per person (RFID tag + duration + volume)
+        → Leak alerts appear instantly (real-time sync)
+        → User can send remote commands (shutoff, config) via Firebase → ESP32
 ```
 
 ---
@@ -140,12 +127,15 @@ Step 5: USER ACTION
 
 | Path | Method | Protocol | Library |
 |------|--------|----------|---------|
-| Sensor → ESP32 | Pulse (GPIO interrupt) | Rising edge | Arduino ISR |
-| ESP32 → RPi | USB UART | JSON Lines (921600 baud) | Arduino Serial / pyserial |
-| RPi → ESP32 | USB UART | JSON Commands | pyserial / Arduino Serial |
-| User → Dashboard | HTTP/WebSocket | HTTPS | Flask + JavaScript |
-| Dashboard → Commands | Write to Serial | JSON | pyserial |
-| **Remote → RPi** | **HTTPS (port forward)** | **HTML/JSON** | **On demand** |
+| RFID Card → Room ESP32 | SPI (MFRC522) | Mifare Classic | MFRC522 library |
+| Flow Sensor → Room ESP32 | Pulse (GPIO interrupt) | Rising edge | Arduino ISR |
+| Room ESP32 → SSR → Solenoid | GPIO HIGH/LOW | Digital signal | Arduino digitalWrite |
+| Room ESP32 → Main ESP32 | ESP-NOW (wireless) | Binary payload | esp_now.h (built-in) |
+| Main ESP32 → Firebase | WiFi + HTTPS | JSON (RTDB) | mobizt Firebase-ESP-Client |
+| Firebase → Main ESP32 | WiFi + HTTPS | Callbacks/Streams | mobizt Firebase-ESP-Client |
+| Firebase → Next.js | WebSocket (RTDB) | Real-time sync | Firebase JS SDK |
+| User → Dashboard | HTTPS | Internet | Next.js + Firebase Auth |
+| Dashboard → ESP32 | Firebase RTDB | Remote commands | mobizt stream + set |
 
 ---
 
@@ -153,14 +143,20 @@ Step 5: USER ACTION
 
 | Decision | Rationale |
 |----------|-----------|
-| **USB Serial over Firebase** | No internet dependency for core loop; zero monthly cost; lower latency; works offline |
-| **pyserial + asyncio** | Non-blocking reads, handles reconnection, standard Python |
-| **RPi over cloud hosting** | Local processing — no monthly fees, full control, no internet dependency for LAN dashboard |
-| **Isolation Forest + XGBoost** | XGBoost for known leak patterns, Isolation Forest for unknown anomalies |
-| **Check Valves per Fixture** | Prevents backflow contamination between fixtures |
-| **SPIFFS Backup** | Survives USB disconnects / RPi reboots — data never lost |
-| **Port Forwarding + DDNS** | Remote access anywhere with internet; standard router feature |
-| **921600 baud** | High throughput for 4 sensors × 5 sec interval; reliable on CP2102/CH340 |
+| **ESP-NOW for room-to-main** | Low-latency, no WiFi router needed, works offline, peer-to-peer |
+| **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, no RPi bridge, stream + callback support |
+| **WiFi on main ESP32 only** | Room ESP32s stay offline (ESP-NOW only) — saves power, no WiFi config per room |
+| **SSR + solenoid per room** | Each room independently controls its own valve — local leak rules trigger shutoff |
+| **RFID per room** | MFRC522 tracks who used water (tap card to log usage) |
+| **Firebase RTDB** | Real-time sync, ESP32 reads/writes directly, no backend server needed |
+| **Firebase Auth** | User login (email/password, Google sign-in) — no custom auth system |
+| **Next.js on Vercel** | Serverless, auto-deploy from Git, free tier sufficient |
+| **No RPi needed** | ESP32 handles everything — WiFi, Firebase, sensors, RFID, SSR |
+| **6 Leak Detection Rules** | No RFID+flow, session ended+flow, solenoid OFF+flow, continuous flow, drip, night flow |
+| **RFID-based leak context** | RFID session state tells firmware whether flow is expected or a leak |
+| **Check Valves per Room** | Prevents backflow contamination between rooms |
+| **SPIFFS Backup** | Survives WiFi disconnects — data cached locally until reconnect |
+| **921600 baud** | High throughput for 3 rooms × 5 sec interval; reliable on CP2102/CH340 |
 
 ---
 
@@ -168,14 +164,17 @@ Step 5: USER ACTION
 
 | Component | Qty | Purpose |
 |-----------|-----|---------|
-| ESP32 38-Pin Dev Board (ESP32 Dev Module) | 1 | Main MCU |
-| ESP32 38-Pin Expansion Board | 1 | Screw terminals for wiring |
-| YF-S201 Flow Sensor | 4 | 1 inlet + 3 fixtures |
-| Check Valve 1/2" | 3 | One per fixture (backflow prevention) |
+| ESP32 38-Pin Dev Board | 4 | 3 room + 1 main |
+| ESP32 38-Pin Expansion Board | 4 | Screw terminals for wiring |
+| MFRC522 RFID Reader | 3 | 1 per room — usage tracking |
+| YF-S201 Flow Sensor | 3 | 1 per room (bathroom, kitchen, shower) |
+| Fotek 40A SSR | 3 | 1 per room — controls solenoid valve |
+| Solenoid Valve 1/2" NC | 3 | 12V DC, normally closed — shutoff on leak |
+| Check Valve 1/2" | 3 | One per room (backflow prevention) |
 | 12V 5A Switching PSU (S-60-12 / LRS-60-12) | 1 | Mains power → 12V |
-| LM2596S Buck Converter | 1 | 12V → 5V for ESP32 + sensors |
-| Waterproof ABS Enclosure IP67 (175×125×75mm) | 1 | Outdoor protection |
-| Raspberry Pi 4/5 + 7" Touchscreen LCD | 1 | Local dashboard + ML backend (800×480) |
+| LM2596S Buck Converter | 1 | 12V → 5V for ESP32s + sensors |
+| Waterproof ABS Enclosure IP67 (175×125×75mm) | 4 | One per ESP32 |
+| ~~Raspberry Pi~~ | ~~1~~ | ~~Serial-to-Firebase bridge~~ — **NO LONGER NEEDED** |
 
 ---
 
@@ -192,15 +191,17 @@ Step 5: USER ACTION
     ▼
 LM2596S Buck Converter (12V → 5V)
     │
-    ├──► ESP32 VIN (5V)
+    ├──► Main ESP32 VIN (5V)
+    │
+    ├──► Room ESP32 ×3 (via USB or separate buck)
     │
     ▼
-Flow Sensors VCC (5V)
+Flow Sensors VCC (5V) × 3
 
-USB from RPi → ESP32 USB (Data + 5V Backup)
+USB from power bank → Main ESP32 (backup power, optional)
 ```
 
-> All sensors connect directly to GPIO (26, 25, 33, 32) — no pull-up resistors or capacitors needed (YF-S201 outputs digital pulses).
+> Each room ESP32 connects to: MFRC522 RFID (SPI), YF-S201 flow sensor (GPIO 26), Fotek 40A SSR (GPIO 25) for room power, and 1-ch 10A relay (GPIO 13) for solenoid valve control. Main ESP32 connects to WiFi and Firebase directly — no RPi needed. SSR powers room electrical line on RFID tap. Relay controls solenoid — smart auto on/off prevents overheating.
 
 ---
 
