@@ -1,8 +1,8 @@
 # Setup Guide — Step-by-Step from Zero to Working System
 
-> **Target audience:** Students / researchers building a water monitoring project  
-> **Estimated time:** 2–3 weeks (part-time)  
-> **Prerequisites:** Basic electronics, basic programming
+> **Target audience:** College students / researchers building a water monitoring project
+> **Estimated time:** 2–3 weeks (part-time)
+> **Prerequisites:** Basic electronics knowledge, basic programming (C++ helpful but not required)
 
 ---
 
@@ -10,12 +10,13 @@
 
 1. [Phase 1: Parts & Tools](#phase-1-parts--tools)
 2. [Phase 2: Software Installation](#phase-2-software-installation)
-3. [Phase 3: Hardware Assembly](#phase-3-hardware-assembly)
-4. [Phase 4: ESP32 Firmware Upload](#phase-4-esp32-firmware-upload)
-5. [Phase 5: Sensor Calibration](#phase-5-sensor-calibration)
-6. [Phase 6: Firebase + Next.js Setup](#phase-6-firebase--nextjs-setup)
-7. [Phase 7: Testing the Full System](#phase-7-testing-the-full-system)
-8. [Phase 8: Enclosure & Deployment](#phase-8-enclosure--deployment)
+3. [Phase 3: Waterline (Plumbing) Setup](#phase-3-waterline-plumbing-setup)
+4. [Phase 4: Hardware Wiring](#phase-4-hardware-wiring)
+5. [Phase 5: ESP32 Firmware Upload](#phase-5-esp32-firmware-upload)
+6. [Phase 6: Sensor Calibration](#phase-6-sensor-calibration)
+7. [Phase 7: Firebase + Next.js Setup](#phase-7-firebase--nextjs-setup)
+8. [Phase 8: Testing the Full System](#phase-8-testing-the-full-system)
+9. [Phase 9: Enclosure & Deployment](#phase-9-enclosure--deployment)
 
 ---
 
@@ -23,36 +24,46 @@
 
 ### Required Parts
 
-Check [BOM.md](./bom.md) for complete list with Shopee/Lazada links. Minimum essentials:
+Check [BOM.md](./bom.md) for complete list with Shopee/Lazada links and prices. Here's a quick summary:
 
-| Item | Qty | Estimated Cost (₱) |
-|------|-----|-------------------|
-| ESP32 38-pin Dev Board | 4 | ₱1,800 |
-| ESP32 38-pin Expansion Board | 4 | ₱720 |
-| YF-S201 Flow Sensor | 3 | ₱540 |
-| SSR Relay Module | 1 | ₱100 |
-| Check Valve 1/2" | 3 | ₱360 |
-| Perf board + soldering | 4 sets | ₱460 |
-| USB Micro Data Cable | 1 | ₱100 |
-| **Minimum Total** | | **~₱4,080** |
+| Category | Item | Qty | Why You Need It |
+|----------|------|-----|-----------------|
+| **Microcontrollers** | ESP32 38-Pin Dev Board | 4 | 3 for rooms + 1 main |
+| | ESP32 38-Pin Expansion Board | 4 | Makes wiring easier (screw terminals) |
+| **RFID** | MFRC522 RFID Reader | 3 | 1 per room — tap card to log usage |
+| | Mifare Classic 1K Cards | 3+ | User access cards |
+| **Sensors** | YF-S201 Flow Sensor | 4 | 3 rooms (leak detection) + 1 main (metering) |
+| **Relays** | 2CH Relay with Optocoupler | 1 | Main ESP32 controls 2 solenoid valves |
+| | 1-ch Relay 10A | 3 | 1 per room — controls solenoid valve |
+| | Fotek 40A SSR | 3 | 1 per room — controls room power (lights/fan) |
+| **Valves** | Solenoid Valve 1/2" NC | 5 | 2 main + 3 room |
+| | Check Valve 1/2" Brass | 3 | Prevents backflow |
+| **Plumbing** | PPE Pipe 1/2" + Fittings | 1 set | Connects everything |
+| | PPR Welding Machine | 1 | Heat-fuses PPE joints |
+| **Power** | 12V 5A Switching PSU | 4 | 1 per ESP32 |
+| | LM2596S Buck Converter | 4 | Steps down 12V → 5V for ESP32 |
+| | DC Power Jack Adapter | 4 | Connects PSU to expansion board |
+| | USB Micro Cable | 4 | For programming + backup power |
+| **Enclosure** | Waterproof ABS Box IP67 | 4 | 1 per ESP32 |
 
 ### Required Tools
 
-- Soldering iron + solder (for permanent setup)
-- Multimeter (for checking connections)
+- Soldering iron + solder (for permanent connections)
+- Multimeter (for checking voltage and continuity)
 - Wire stripper / cutter
-- Small flathead screwdriver
+- Small flathead screwdriver (for screw terminals)
 - Hot glue gun (for mounting sensors)
 
 ### Software You Need
 
 | Software | Purpose | Download |
 |----------|---------|----------|
-| **Arduino IDE 2.x** | ESP32 build, upload, Serial Monitor | [arduino.cc](https://www.arduino.cc/en/software) |
-| **Python 3.11+** | Backend | [python.org](https://www.python.org/) |
-| **Git** | Version control | [git-scm.com](https://git-scm.com/) |
-| **Google Chrome / Firefox** | Dashboard access | — |
-| **Firebase Account** | Cloud database + auth | [firebase.google.com](https://firebase.google.com/) |
+| **Arduino IDE 2.x** | Build and upload ESP32 firmware | [arduino.cc](https://www.arduino.cc/en/software) |
+| **Git** | Download project files | [git-scm.com](https://git-scm.com/) |
+| **Google Chrome / Firefox** | Access the dashboard | — |
+| **Firebase Account** | Cloud database + user login | [firebase.google.com](https://firebase.google.com/) |
+
+> **Note:** No Python needed! The ESP32 talks directly to Firebase via WiFi.
 
 ---
 
@@ -62,364 +73,443 @@ Check [BOM.md](./bom.md) for complete list with Shopee/Lazada links. Minimum ess
 
 1. Download Arduino IDE 2.x from [arduino.cc](https://www.arduino.cc/en/software)
 2. Install and open Arduino IDE
-3. Add ESP32 board support:
-   - File -> Preferences -> Additional Board Manager URLs
-   - Add: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-   - Tools -> Board -> Boards Manager -> search **ESP32** -> install **ESP32 Arduino**
-4. Install required libraries via Library Manager (Tools -> Manage Libraries):
-   - `ArduinoJson` by Benoit Blanchon (v7+)
+3. **Add ESP32 board support:**
+   - Go to **File → Preferences**
+   - Find "Additional Board Manager URLs"
+   - Paste this URL:
+     ```
+     https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+     ```
+   - Click **OK**
+4. **Install ESP32 boards:**
+   - Go to **Tools → Board → Boards Manager**
+   - Search **ESP32**
+   - Install **esp32 by Espressif Systems**
+5. **Install required libraries:**
+   - Go to **Tools → Manage Libraries**
+   - Search and install:
+     - **ArduinoJson** by Benoit Blanchon (v7+)
+     - **Firebase ESP32 Client** by mobizt (for main ESP32)
 
-> **Note:** No Firebase-ESP-Client needed — we use plain USB Serial with ArduinoJson.
-
-### Step 2.2: Install Python
-
-1. Download Python 3.11+ from python.org
-2. **Important:** Check **"Add Python to PATH"** during installation
-3. Verify:
-   ```bash
-   python --version
-   # Should show: Python 3.11.x or higher
-   ```
-
-### Step 2.3: Clone the Project
+### Step 2.2: Clone the Project
 
 ```bash
-# Open terminal (Command Prompt or Git Bash)
+# Open terminal (Command Prompt on Windows, Terminal on Mac/Linux)
 git clone https://github.com/qppd/wmldad.git
 cd wmldad
 ```
 
+---
 
+## Phase 3: Waterline (Plumbing) Setup
 
-## Phase 3: Hardware Assembly
+> **Do this first before wiring!** It's easier to plan plumbing before connecting electronics.
 
-### Step 3.1: Prepare the Expansion Board
-
-The ESP32 expansion board makes wiring much easier. It provides:
-- Labeled screw terminals for each GPIO pin
-- Power rails (5V and 3.3V)
-- Reset and BOOT buttons
-
-### Step 3.2: Wire Room ESP32s (×3)
-
-Each room ESP32 gets 1 YF-S201 flow sensor on GPIO 26:
+### Water Flow Structure
 
 ```
-YF-S201 Sensor          Room ESP32 Expansion Board
-┌──────────────┐
-│  Red   ──────┼────── 5V (VIN pin)
-│  Black ──────┼────── GND
-│  Yellow ─────┼────── GPIO 26
-└──────────────┘
+Water Tank (500-1000L)
+    │
+    ▼
+Fittings → 1" Pipe
+    │
+    ▼
+Reducer Fittings (1" → 1/2")
+    │
+    ▼
+╔═══════════════════════════════════════════════════╗
+║  MAIN CONTROL ZONE (inside main enclosure)       ║
+║                                                   ║
+║  Solenoid Valve 1 ──► Flow Sensor ──► Solenoid 2 ║
+╚═══════════════════════════════════════════════════╝
+    │
+    ▼
+T-Connector → 1/2" PPE Pipe to Each Room
+    ├──→ Room 1 (Bathroom)
+    ├──→ Room 2 (Kitchen)
+    └──→ Room 3 (Shower)
 ```
 
-**Note:** The YF-S201 Hall-effect sensor outputs a digital pulse signal. No external pull-up resistor or capacitor needed — connect signal wire directly to GPIO.
+### Step 3.1: Install Main Plumbing
 
-| Room ESP32 | Room | Flow Sensor | GPIO |
-|------------|------|-------------|------|
-| #1 | Bathroom | YF-S201 | GPIO 26 |
-| #2 | Kitchen | YF-S201 | GPIO 26 |
-| #3 | Shower | YF-S201 | GPIO 26 |
+1. Connect water tank output to **1" pipe** using fittings
+2. Use **reducer fittings** to go from 1" to 1/2"
+3. Install **Solenoid Valve 1** (12V NC) — first shutoff
+4. Install **Flow Sensor** (calibrated) — measures total household usage
+5. Install **Solenoid Valve 2** (12V NC) — second shutoff (redundancy)
+6. Install **T-connector** to split into3 lines
+7. Run **1/2" PPE pipe** to each room
 
-### Step 3.3: Wire MFRC522 RFID Reader (per room)
+> **Why two solenoid valves?** Safety! If one valve fails stuck open, the other can still shut off water.
 
-Each room ESP32 gets an MFRC522 RFID reader via SPI:
-
-```
-MFRC522 RFID             Room ESP32 Expansion Board
-┌──────────────┐
-│  SDA  ──────┼────── GPIO 5
-│  SCK  ──────┼────── GPIO 18
-│  MOSI ──────┼────── GPIO 23
-│  MISO ──────┼────── GPIO 19
-│  RST  ──────┼────── GPIO 27
-│  3.3V ──────┼────── 3.3V
-│  GND  ──────┼────── GND
-└──────────────┘
-```
-
-### Step 3.4: Wire Fotek 40A SSR (per room — room power)
-
-```
-Fotek 40A SSR            Room ESP32 Expansion Board
-┌──────────────┐
-│  CTRL ──────┼────── GPIO 25
-│  VCC  ──────┼────── 5V
-│  GND  ──────┼────── GND
-│  OUT+ ──────┼────── Room electrical line (live)
-│  OUT- ──────┼────── Neutral
-└──────────────┘
-```
-> SSR controls room power — HIGH when RFID tap valid, LOW when session ends.
-
-### Step 3.5: Wire 1-ch Relay + Solenoid Valve (per room — solenoid control)
-
-```
-1-ch Relay 10A           Room ESP32 Expansion Board
-┌──────────────┐
-│  IN   ──────┼────── GPIO 13
-│  VCC  ──────┼────── 5V
-│  GND  ──────┼────── GND
-│  OUT+ ──────┼────── Solenoid Valve 12V NC (+)
-│  OUT- ──────┼────── 12V PSU (-)
-└──────────────┘
-
-Solenoid Valve 12V NC:
-│  Wire (+) ──┼────── Relay OUT+
-│  Wire (-) ──┼────── 12V PSU (-)
-```
-> **Note:** Solenoid valves are NC (normally closed). Relay HIGH = water flows. Relay LOW = shutoff.
-> 
-> **Smart Solenoid Control:** The solenoid relay is ONLY energized when the flow sensor detects water usage. When no flow for N seconds, relay turns OFF (solenoid closes) to prevent overheating. Turns back ON when flow resumes.
->
-> **Session Flow:** RFID tap valid → SSR ON + Solenoid ON → Flow detected → Solenoid stays ON → No flow for N sec → Solenoid OFF (heating protection) → Flow resumes → Solenoid ON → Session timeout → SSR OFF.
-
-### Step 3.5: Wire Main ESP32
-
-Main ESP32 connects to WiFi and Firebase directly (no SSR — each room handles its own):
-
-```
-USB Micro-B ──────────── USB Port (power + debug)
-```
-
-### Step 3.6: Plumbing Setup
+### Step 3.2: Install Room Plumbing
 
 For each room:
-1. Install flow sensor in-line with **PPE pipe** (heat-fused joints)
-2. Add check valve after sensor (arrow = flow direction)
-3. Connect to fixture (bidet, kitchen faucet, shower)
+1. Connect **check valve** (arrow pointing toward fixture)
+2. Connect **flow sensor** (for leak detection)
+3. Connect to fixture (faucet, shower, bidet)
 
-**For testing:**
-- Fill a 20L container with water
-- Connect pump or gravity-feed through each room sensor
-- Open/close valves to simulate usage
+### Step 3.3: Heat-Fuse PPE Joints
+
+1. Heat up PPR welding machine
+2. Heat both pipe and fitting for 5-10 seconds
+3. Push together and hold for 30 seconds
+4. Let cool before testing
 
 ---
 
-## Phase 4: ESP32 Firmware Upload
+## Phase 4: Hardware Wiring
 
-### Step 4.1: Configure Firmware
+### Room ESP32 Wiring (×3 — same for each room)
 
-1. Open `src/config.example.h` in any text editor
-2. Create `src/config.h` (copy the example)
-3. Fill in your credentials:
+Each room ESP32 gets: **RFID + Flow Sensor + SSR + Relay + Solenoid**
+
+```
+Room ESP32 38-Pin Expansion Board
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│  SPI Bus (MFRC522 RFID):                           │
+│  [5]  ──────┬── MFRC522 SDA (NSS)                  │
+│  [18] ──────┬── MFRC522 SCK                        │
+│  [23] ──────┬── MFRC522 MOSI                       │
+│  [19] ──────┬── MFRC522 MISO                       │
+│  [21] ──────┬── MFRC522 RST                        │
+│  3V   ──────┬── MFRC522 3.3V                       │
+│  GND  ──────┬── MFRC522 GND                        │
+│                                                     │
+│  Flow Sensor (leak detection):                     │
+│  [26] ──────┬── YF-S201 Signal (Yellow)            │
+│  5V   ──────┬── YF-S201 VCC (Red)                  │
+│  GND  ──────┬── YF-S201 GND (Black)                │
+│                                                     │
+│  SSR (Room Power — lights, fan, appliances):       │
+│  [27] ──────┬── Fotek 40A SSR Input +              │
+│  GND  ──────┬── Fotek 40A SSR Input -              │
+│  SSR OUT1 ──┬── 220V line                          │
+│  SSR OUT2 ──┬── Appliance 1st wire                 │
+│  Appliance 2nd wire ── 220V line                   │
+│                                                     │
+│  Relay (Solenoid Valve):                           │
+│  [25] ──────┬── 1-ch Relay IN                      │
+│  5V   ──────┬── Relay VCC                          │
+│  GND  ──────┬── Relay GND                          │
+│  Relay COM ──┬── Solenoid +                        │
+│  Relay NO  ──┬── PSU + (12V)                       │
+│  Solenoid - ── PSU - (directly)                    │
+│                                                     │
+│  Power: 12V jack input (from switching PSU)        │
+└─────────────────────────────────────────────────────┘
+```
+
+**Connection Summary Table:**
+
+| Component | GPIO Pin | Function |
+|-----------|----------|----------|
+| MFRC522 SDA | GPIO 5 | RFID SPI data |
+| MFRC522 SCK | GPIO 18 | RFID SPI clock |
+| MFRC522 MOSI | GPIO 23 | RFID SPI master out |
+| MFRC522 MISO | GPIO 19 | RFID SPI master in |
+| MFRC522 RST | GPIO 21 | RFID reset |
+| Flow Sensor | GPIO 26 | Leak detection pulses |
+| Fotek 40A SSR | GPIO 27 | Room power control |
+| 1-ch Relay | GPIO 25 | Solenoid valve control |
+
+### Main ESP32 Wiring
+
+Main ESP32 gets: **Flow Sensor + 2CH Relay + 2 Solenoids + Reset Button**
+
+```
+Main ESP32 38-Pin Expansion Board
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│  Flow Sensor (calibrated — accurate metering):     │
+│  [34] ──────┬── YF-S201 Signal (Yellow)            │
+│  5V   ──────┬── YF-S201 VCC (Red)                  │
+│  GND  ──────┬── YF-S201 GND (Black)                │
+│                                                     │
+│  2CH Relay (Solenoid Valves 1 & 2):                │
+│  5V   ──────┬── Relay VCC                           │
+│  GND  ──────┬── Relay GND                           │
+│  [19] ──────┬── Relay IN1 (Solenoid 1)              │
+│  [18] ──────┬── Relay IN2 (Solenoid 2)              │
+│  COM1 ──────┬── Solenoid 1 +                        │
+│  COM2 ──────┬── Solenoid 2 +                        │
+│  NO1  ──────┬── PSU + (12V)                         │
+│  NO2  ──────┬── PSU + (12V)                         │
+│  Solenoid 1- ── PSU - (directly)                    │
+│  Solenoid 2- ── PSU - (directly)                    │
+│                                                     │
+│  Reset Button (WiFi creds reset):                  │
+│  [27] ──────┬── Arcade Button Pin 2                 │
+│  GND  ──────┬── Arcade Button Pin 1                 │
+│                                                     │
+│  WiFi + ESP-NOW RX (receives from room ESP32s)     │
+│  [2]  ──────┬── Built-in LED (status)               │
+│                                                     │
+│  Power: 12V jack input (from switching PSU)        │
+└─────────────────────────────────────────────────────┘
+```
+
+**Connection Summary Table:**
+
+| Component | GPIO Pin | Function |
+|-----------|----------|----------|
+| Flow Sensor | GPIO 34 | Calibrated metering |
+| 2CH Relay IN1 | GPIO 19 | Solenoid 1 control |
+| 2CH Relay IN2 | GPIO 18 | Solenoid 2 control |
+| Reset Button | GPIO 27 | Press to reset WiFi creds |
+| Built-in LED | GPIO 2 | Status indication |
+
+### Power Wiring
+
+Each ESP32 gets its own power supply:
+
+```
+220V AC Outlet
+    │
+    ▼
+12V 5A Switching PSU (S-60-12)
+    │
+    ├──► DC Jack Adapter (5.5×2.1mm) ──► Expansion Board Jack (12V input)
+    │
+    └──► (Main only) 12V+ to 2CH Relay NO1/NO2 for solenoids
+```
+
+> **Important:** The expansion board accepts 6.5–16V via the DC jack. The PSU outputs 12V, which is perfect. The buck converter on the board steps it down to 5V for the ESP32.
+
+---
+
+## Phase 5: ESP32 Firmware Upload
+
+### Step 5.1: Configure Firmware
+
+1. Open `src/config.example.h` in a text editor
+2. Copy it to `src/config.h`
+3. Edit `src/config.h` with your settings:
 
 ```cpp
 // === Device Identity ===
-#define DEVICE_ID        "wmldad-room1"   // or wmldad-room2, wmldad-room3, wmldad-main
-#define FIRMWARE_VERSION "v4.0.0-espnow"
-#define ROOM_ID          1                // 1=bathroom, 2=kitchen, 3=shower (room ESP32s only)
+// Room ESP32s:
+#define DEVICE_ID        "wmldad-room1"   // or room2, room3
+#define ROOM_ID          1                // 1=bathroom, 2=kitchen, 3=shower
+#define IS_MAIN          false
 
-// === WiFi (for ESP-NOW + OTA + NTP) ===
+// Main ESP32:
+// #define DEVICE_ID    "wmldad-main"
+// #define IS_MAIN      true
+
+// === WiFi ===
 #define WIFI_SSID        "YOUR_WIFI_NAME"
 #define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
 
-// === Sensor Calibration (PPL = Pulses Per Liter) ===
-// UPDATE AFTER BUCKET TEST!
-#define PPL_SENSOR       450
+// === Sensor Calibration ===
+// UPDATE AFTER BUCKET TEST (Phase 6)!
+#define PPL_SENSOR       450              // Pulses Per Liter
 
-// === Sensor Pin ===
-#define PIN_SENSOR       26              // All room ESP32s use GPIO 26
+// === Pin Assignments ===
+// Room ESP32:
+#define PIN_SENSOR       26              // Flow sensor signal
+#define PIN_SSR          27              // SSR (room power)
+#define PIN_RELAY        25              // Relay (solenoid)
 
-// === Main ESP32 Peer (for ESP-NOW) ===
-// Update with your main ESP32's MAC address
+// Main ESP32:
+// #define PIN_SENSOR    34              // Calibrated flow sensor
+// #define PIN_RELAY1    19              // 2CH Relay IN1 (solenoid 1)
+// #define PIN_RELAY2    18              // 2CH Relay IN2 (solenoid 2)
+// #define PIN_RESET     27              // Reset button
+
+// === ESP-NOW Peer ===
+// Main ESP32's MAC address (get from Serial Monitor)
 #define MAIN_ESP_MAC     {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
 
-// === SSR Relay Pin (per room — controls solenoid) ===
-#define PIN_SSR          25            // HIGH = solenoid ON (water flows), LOW = shutoff
-
-// === Timing ===
-#define SEND_INTERVAL_MS 5000            // ESP-NOW send every 5 sec
-```
-
-### Step 4.2: Upload Firmware
-
-1. Connect ESP32 via USB cable
-2. In Arduino IDE, select your board:
-   - **Tools -> Board -> ESP32 Arduino -> ESP32 Dev Module**
-3. Select the correct port:
-   - **Tools -> Port -> COMx** (check Windows Device Manager for the COM port)
-4. Click **Sketch -> Verify/Compile** (Ctrl+R) to check for errors
-5. Click **Sketch -> Upload** (Ctrl+U) to flash the ESP32
-6. If upload fails:
-   - Hold **BOOT** button on ESP32
-   - Press **EN** (reset) while holding BOOT
-   - Release EN, then release BOOT
-   - Click Upload again
-
-### Step 4.3: Monitor Serial Output
-
-1. Open **Tools -> Serial Monitor** (Ctrl+Shift+M)
-2. Set baud rate to **921600** (bottom-right of Serial Monitor window)
-3. You should see:
-   ```
-   // Room ESP32 Serial Monitor:
-   {"status":"ready","device_id":"wmldad-room1","firmware":"v4.0.0-espnow"}
-   {"room_id":1,"ts":123456,"pulses":127,"flow_rate_lpm":2.34,"volume_ml":456,"leak_alert":false}
-   
-   // Main ESP32 Serial Monitor (receives from all rooms):
-   {"status":"ready","device_id":"wmldad-main","firmware":"v4.0.0-espnow"}
-   {"rooms":[{"room_id":1,"flow_rate_lpm":2.34,"volume_ml":456},{"room_id":2,"flow_rate_lpm":0.0,"volume_ml":0},{"room_id":3,"flow_rate_lpm":1.12,"volume_ml":210}]}
-   ```
-
----
-
-## Phase 5: Sensor Calibration
-
-> Detailed procedure: [Calibration Guide](./esp32-firmware-complete-guide.md#sensor-calibration-bucket-test)
-
-### Quick Calibration (Bucket Test)
-
-1. **Prepare:** Get a 5L graduated container
-2. **Connect:** Run water from faucet through the inlet sensor into the container
-3. **Open:** Turn on faucet at medium flow
-4. **Collect:** Exactly 5 liters
-5. **Read:** Get pulse count from Serial Monitor (watch `pulses` field)
-6. **Calculate:**
-   ```
-   Actual PPL = Total Pulse Count ÷ 5
-   ```
-7. **Update:** Change `PPL_SENSOR` in `config.h`
-8. **Repeat** for each sensor (move sensor to each fixture line)
-
----
-
-## Phase 6: Firebase + Next.js Setup
-
-### Step 6.1: Create Firebase Project
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create new project (e.g., `wmldad-water-monitor`)
-3. Enable **Realtime Database** → Create database → Start in test mode
-4. Enable **Authentication** → Sign-in method → Enable Email/Password + Google
-5. Go to Project Settings → General → Copy **Web API Key** and **Database URL**
-6. Add these to Main ESP32's `config.h` (see Step 6.3)
-
-### Step 6.2: Configure Main ESP32 for Firebase
-
-In the main ESP32's `config.h`, add:
-
-```cpp
+// === Firebase (main ESP32 only) ===
 #define FIREBASE_API_KEY "YOUR_FIREBASE_API_KEY"
 #define FIREBASE_DATABASE_URL "https://your-project.firebaseio.com"
 ```
 
-The main ESP32 uses [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) to connect to Firebase via WiFi. Install via Arduino Library Manager: search **Firebase ESP32 Client** by **mobizt**.
+### Step 5.2: Upload Firmware
 
-### Step 6.3: Deploy Next.js App
+1. Connect ESP32 to computer via USB cable
+2. In Arduino IDE:
+   - **Tools → Board → ESP32 Arduino → ESP32 Dev Module**
+   - **Tools → Port → COMx** (check Device Manager)
+3. Click **Sketch → Verify/Compile** (Ctrl+R)
+4. Click **Sketch → Upload** (Ctrl+U)
+
+**If upload fails:**
+1. Hold **BOOT** button on ESP32
+2. Press **EN** (reset) while holding BOOT
+3. Release EN, then release BOOT
+4. Click Upload again
+
+### Step 5.3: Get MAC Address
+
+1. Upload the firmware
+2. Open **Tools → Serial Monitor** (Ctrl+Shift+M)
+3. Set baud rate to **921600**
+4. Look for MAC address in the output
+5. Copy it to `config.h` on other ESP32s
+
+---
+
+## Phase 6: Sensor Calibration
+
+> **Only calibrate the main flow sensor!** Room flow sensors are for leak detection only.
+
+### Bucket Test Procedure
+
+1. **Get a 5L container** (graduated measuring cup works)
+2. **Connect** the main flow sensor in-line with a faucet
+3. **Run water** at medium flow into the container
+4. **Collect exactly 5 liters**
+5. **Read** the pulse count from Serial Monitor
+6. **Calculate:**
+   ```
+   PPL = Total Pulses ÷ 5
+   ```
+7. **Update** `PPL_SENSOR` in `config.h`
+8. **Re-upload** firmware
+9. **Repeat** if accuracy is off
+
+---
+
+## Phase 7: Firebase + Next.js Setup
+
+### Step 7.1: Create Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **Create a project** (e.g., `wmldad-water-monitor`)
+3. Enable **Realtime Database**:
+   - Go to Build → Realtime Database → Create Database
+   - Start in **test mode**
+4. Enable **Authentication**:
+   - Go to Build → Authentication → Sign-in method
+   - Enable **Email/Password** and **Google**
+5. Get your credentials:
+   - Go to Project Settings → General
+   - Copy **Web API Key** and **Database URL**
+6. Add to main ESP32's `config.h`
+
+### Step 7.2: Deploy Next.js Dashboard
 
 ```bash
-# On your computer:
+# Clone the web dashboard
 git clone https://github.com/qppd/wmldad-web.git
 cd wmldad-web
-npm install
-npm run dev  # Test locally at localhost:3000
 
-# Deploy to Vercel:
+# Install dependencies
+npm install
+
+# Run locally (for testing)
+npm run dev
+# Open http://localhost:3000
+
+# Deploy to Vercel (for production)
 npx vercel deploy
 ```
 
-The Next.js app connects to Firebase RTDB for real-time data and Firebase Auth for user login.
+---
 
-### Step 6.4: Configure Firebase for Next.js
+## Phase 8: Testing the Full System
 
-Create `lib/firebase.ts` in the Next.js project:
+### Test 1: Room ESP32 Powers On
+1. Plug in 12V PSU to room ESP32
+2. LED should blink
+3. Open Serial Monitor (921600 baud)
+4. Should see JSON status message
 
-```typescript
-import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
-import { getAuth } from 'firebase/auth';
+### Test 2: RFID Works
+1. Tap a Mifare card on the RFID reader
+2. Serial Monitor should show card ID
+3. LED should change pattern
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-};
+### Test 3: Flow Sensor Detects Water
+1. Turn on faucet
+2. Serial Monitor should show increasing pulse count
+3. Flow rate should appear
 
-const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
-export const auth = getAuth(app);
-```
+### Test 4: Main ESP32 Receives Data
+1. Power on main ESP32
+2. All 3 room ESP32s should send data via ESP-NOW
+3. Main ESP32 Serial Monitor shows aggregated data
 
-> See [system-architecture.md](./system-architecture.md) and [stacks.md](./stacks.md) for architecture details.
+### Test 5: Solenoid Valves Work
+1. From Serial Monitor, send command to open solenoid
+2. Should hear click from relay
+3. Water should flow
+4. Send close command → water stops
+
+### Test 6: Firebase Connection
+1. Main ESP32 connects to WiFi automatically
+2. Data appears in Firebase Console
+3. Next.js dashboard shows live data
+
+### Test 7: Leak Detection
+1. Simulate leak (small flow without RFID tap)
+2. Room ESP32 sends leak alert via ESP-NOW
+3. Main ESP32 receives alert
+4. Dashboard shows leak warning
 
 ---
 
-## Phase 7: Testing the Full System
+## Phase 9: Enclosure & Deployment
 
-### Test 1: ESP32 → USB Serial
-1. Turn water on through a fixture
-2. Open Serial Monitor (921600 baud) on your computer
-3. JSON data should stream every 5 seconds
-4. Verify flow rate changes when you open/close faucets
+### Step 9.1: Permanent Wiring
 
-### Test 2: ESP32 → Firebase → Next.js Dashboard
-1. Power on Main ESP32 — connects to WiFi + Firebase automatically
-2. Open the Next.js dashboard on Vercel (or localhost:3000)
-3. Log in via Firebase Auth
-4. Should see live room data from Firebase RTDB
-5. Check Main ESP32 Serial Monitor for Firebase connection status
+1. **Solder** connections to perf board (instead of breadboard)
+2. **Mount** expansion board inside IP67 enclosure
+3. **Use cable glands** for waterproof cable entry
+4. **Label** all wires (room number, function)
+5. **Secure** wires with cable ties
 
-### Test 3: Leak Detection
-1. Simulate a **minor leak**: partially open a valve to produce 0.1–0.5 L/min
-2. Wait 30+ seconds
-3. Check if an alert appears on the dashboard
-4. Check logs for detection
+### Step 9.2: Mount Enclosures
 
-### Test 4: Command Flow
-1. From dashboard, send a command (e.g., "calibrate")
-2. ESP32 should respond via Serial
-3. Check Serial Monitor for acknowledgment
+1. Mount each room enclosure near the room's plumbing
+2. Mount main enclosure near the main waterline
+3. Ensure cables can reach all components
+4. Use double-sided tape or screws
 
-### Test 5: Offline Mode
-1. Disconnect WiFi on Main ESP32
-2. ESP32 should continue logging to SPIFFS (LED patterns show local alerts)
-3. Reconnect USB → data should appear on dashboard
+### Step 9.3: Final Testing
+
+1. Turn on water supply
+2. Check for leaks at all connections
+3. Test RFID in each room
+4. Verify flow readings on dashboard
+5. Test solenoid shutoff from dashboard
+6. Leave system running for 24 hours
 
 ---
 
-## Phase 8: Enclosure & Deployment
+## Quick Reference
 
-### Permanent Wiring
-1. Solder components to perf board (instead of breadboard)
-2. Mount expansion board inside ABS enclosure
-3. Use cable glands for water sensor cables
-4. Label all wires
+### Arduino IDE Shortcuts
 
-### Final Calibration
-1. Install sensors in actual plumbing
-2. Perform bucket test on each sensor
-3. Update PPL values in `config.h`, re-upload firmware
-4. Verify total consumption matches water bill
+| Action | Shortcut |
+|--------|----------|
+| Verify/Compile | Ctrl+R |
+| Upload | Ctrl+U |
+| Serial Monitor | Ctrl+Shift+M |
+| Save | Ctrl+S |
 
-### Monitoring
-1. Set up dashboard as home page on touchscreen
-2. Configure in-app alerts (via dashboard /api/alerts)
-3. Set up periodic health checks
-4. Check system health periodically
+### Serial Monitor Settings
 
----
+- **Baud Rate:** 921600
+- **Line Ending:** Newline
 
-## Quick Reference: Common Commands
+### GPIO Pin Reference
 
-```bash
-# Arduino IDE: Verify/Compile
-#   Sketch -> Verify/Compile  (Ctrl+R)
-
-# Arduino IDE: Upload to ESP32
-#   Sketch -> Upload  (Ctrl+U)
-
-# Arduino IDE: Serial Monitor
-#   Tools -> Serial Monitor  (Ctrl+Shift+M)  @ 921600 baud
-
-# Main ESP32: Connects to WiFi + Firebase automatically on boot
-# No bridge needed — ESP32 talks to Firebase directly via mobizt SDK
-
-# Next.js: Run locally
-cd wmldad-web
-npm run dev
-```
+| ESP32 | Room Functions | Main Functions |
+|-------|----------------|----------------|
+| GPIO 2 | Built-in LED | Built-in LED |
+| GPIO 5 | MFRC522 SDA | — |
+| GPIO 18 | MFRC522 SCK | 2CH Relay IN2 |
+| GPIO 19 | MFRC522 MISO | 2CH Relay IN1 |
+| GPIO 21 | MFRC522 RST | — |
+| GPIO 23 | MFRC522 MOSI | — |
+| GPIO 25 | 1-ch Relay IN | — |
+| GPIO 26 | Flow Sensor | — |
+| GPIO 27 | Fotek SSR IN | Reset Button |
+| GPIO 34 | — | Flow Sensor (calibrated) |
 
 ---
 
@@ -429,6 +519,30 @@ npm run dev
 **🔗 [View Interactive Wiring Diagram](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5)**
 
 ### Static Wiring Diagram (PNG)
-![Wiring Diagram](../wiring/wmldad.png)
+![Wiring Diagram](../wiring/smartrooms.png)
 
-### Wiring Source File
+---
+
+## Troubleshooting
+
+| Problem | Likely Cause | Solution |
+|---------|--------------|----------|
+| ESP32 won't power on | Wrong power cable | Use **data cable**, not charge-only |
+| No Serial output | Wrong baud rate | Set to **921600** in Serial Monitor |
+| Upload fails | ESP32 not in flash mode | Hold BOOT, press EN, release both |
+| RFID not reading | Wrong wiring | Check SPI pins: SDA→5, SCK→18, MOSI→23, MISO→19 |
+| Flow sensor no pulses | Wrong GPIO | Signal wire must go to **GPIO 26** (room) or **GPIO 34** (main) |
+| Solenoid not opening | Relay not firing | Check relay IN pin and 12V PSU connection |
+| WiFi won't connect | Wrong credentials | Double-check SSID and password in config.h |
+| Firebase not receiving | API key wrong | Verify FIREBASE_API_KEY in config.h |
+
+---
+
+## Need Help?
+
+1. Check [troubleshooting.md](./troubleshooting.md) for detailed fixes
+2. Check [esp32-firmware-complete-guide.md](./esp32-firmware-complete-guide.md) for firmware details
+3. Open a GitHub Issue with:
+   - Serial Monitor output (last 50 lines)
+   - Your `config.h` (remove passwords!)
+   - Photo of your wiring
