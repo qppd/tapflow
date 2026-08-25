@@ -134,33 +134,37 @@
 **YF-S201 Flow Sensor (calibrated — for accurate metering):**
 | Wire | Pin |
 |------|-----|
-| Red (VCC) | 5V |
+| Red (VCC) | 5V (expansion board) |
 | Black (GND) | GND |
 | Yellow (Signal) | GPIO 34 |
 
-**1-ch Relay 10A — Solenoid Valve 1:**
+**2CH Relay with Optocoupler (solenoid valve control):**
 | Wire | Pin |
 |------|-----|
-| Relay IN | GPIO 25 |
-| Relay VCC | 5V |
-| Relay GND | GND |
-| Relay OUT+ | Solenoid 1 12V NC (+) |
-| Relay OUT- | 12V PSU (-) |
+| VCC | 5V (expansion board) |
+| GND | GND |
+| IN1 | GPIO 19 |
+| IN2 | GPIO 18 |
+| COM1 | Solenoid 1 + |
+| COM2 | Solenoid 2 + |
+| NO1 | PSU + (12V) |
+| NO2 | PSU + (12V) |
+| Solenoid 1 - | PSU - (directly) |
+| Solenoid 2 - | PSU - (directly) |
 
-**1-ch Relay 10A — Solenoid Valve 2:**
+**Reset Button (Arcade — WiFi credentials reset):**
 | Wire | Pin |
 |------|-----|
-| Relay IN | GPIO 13 |
-| Relay VCC | 5V |
-| Relay GND | GND |
-| Relay OUT+ | Solenoid 2 12V NC (+) |
-| Relay OUT- | 12V PSU (-) |
+| Pin 1 | GND (expansion board) |
+| Pin 2 | GPIO 27 |
+
+**Power:** Expansion board jack input → 12V switching PSU (accepts 6.5–16V)
 
 | Connection | Notes |
 |------------|-------|
 | WiFi | Connects to local network, pushes to Firebase RTDB |
 | ESP-NOW | Receives RFID + leak alerts from room ESP32s |
-| Power | 5V from buck converter (ESP32 + sensors) + 12V from PSU (solenoids) |
+| Power | 12V from PSU (ESP32 + sensors + solenoids) |
 
-> **Architecture:** Main ESP32 is centralized before the rooms. It controls both solenoid valves and reads the calibrated flow sensor. Room ESP32s only handle RFID and leak detection — they wirelessly report to main via ESP-NOW.
+> **Architecture:** Main ESP32 is centralized before the rooms. It controls both solenoid valves via 2CH relay and reads the calibrated flow sensor. Room ESP32s handle RFID, flow sensor (leak detection), SSR (room power), and relay (solenoid) — they wirelessly report to main via ESP-NOW.
 > **Note:** Solenoid valves are 12V NC (normally closed). Relay fires to OPEN valve (allow water flow). On leak detection, relay turns OFF → solenoid closes → water stops.

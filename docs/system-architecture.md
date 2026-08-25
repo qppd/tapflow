@@ -199,7 +199,7 @@ LM2596S Buck Converter (12V → 5V)
     └──► RFID / other 5V sensors
 ```
 
-> **Room ESP32s** connect to: MFRC522 RFID (SPI, RST→GPIO 21), YF-S201 flow sensor (GPIO 26), Fotek 40A SSR (GPIO 27, room power), and 1-ch relay (GPIO 25, solenoid). **Main ESP32** connects to: calibrated YF-S201 flow sensor (GPIO 34), 2× 1-ch relay (GPIO 25, 13) for solenoid valves, and WiFi. Main ESP32 is centralized before the rooms — controls both solenoid valves and reads calibrated flow sensor.
+> **Room ESP32s** connect to: MFRC522 RFID (SPI, RST→GPIO 21), YF-S201 flow sensor (GPIO 26), Fotek 40A SSR (GPIO 27, room power), and 1-ch relay (GPIO 25, solenoid). **Main ESP32** connects to: calibrated YF-S201 flow sensor (GPIO 34), 2CH relay (IN1→GPIO 19, IN2→GPIO 18) for solenoid valves, reset button (GPIO 27), and WiFi. Main ESP32 is centralized before the rooms — controls both solenoid valves via 2CH relay and reads calibrated flow sensor.
 
 ---
 

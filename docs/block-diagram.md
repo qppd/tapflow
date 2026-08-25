@@ -72,17 +72,19 @@ graph TB
 | **Built-in LED** | Digital | GPIO 2 | Status indication |
 | **Power** | 12V jack | 6.5–16V input | Expansion board accepts 12V from switching PSU |
 
-### Main ESP32 — Centralized Control (WiFi + relays + solenoids + calibrated flow sensor)
+### Main ESP32 — Centralized Control (WiFi + 2CH relay + solenoids + calibrated flow sensor)
 
 | Component | Interface | Pins | Notes |
 |-----------|-----------|------|-------|
 | **YF-S201 Flow Sensor** | Digital | GPIO 34 | Calibrated — accurate metering |
-| **1-ch Relay 10A (Solenoid 1)** | Digital | GPIO 25 | HIGH = water flows, LOW = shutoff |
-| **1-ch Relay 10A (Solenoid 2)** | Digital | GPIO 13 | HIGH = water flows, LOW = shutoff |
-| **Solenoid Valve ×2** | Via relays | 12V NC | Normally closed — opens when relay fires |
+| **2CH Relay (Solenoid 1)** | Digital | GPIO 19 | HIGH = water flows, LOW = shutoff |
+| **2CH Relay (Solenoid 2)** | Digital | GPIO 18 | HIGH = water flows, LOW = shutoff |
+| **Solenoid Valve ×2** | Via 2CH relay | 12V NC | COM→solenoid+, NO→PSU+, solenoid-→PSU- |
+| **Reset Button** | Digital | GPIO 27 | Arcade button — press to reset WiFi creds |
 | **WiFi** | WiFi + mobizt SDK | — | Connects to Firebase RTDB |
 | **ESP-NOW RX** | ESP-NOW | — | Receives RFID + leak alerts from room ESP32s |
 | **Built-in LED** | Digital | GPIO 2 | Status indication |
+| **Power** | 12V jack | 6.5–16V input | Expansion board accepts 12V from switching PSU |
 
 ---
 
@@ -148,25 +150,29 @@ Main ESP32 38-Pin Expansion Board
 │  5V   ──────┬── YF-S201 VCC (Red)                  │
 │  GND  ──────┬── YF-S201 GND (Black)                │
 │                                                     │
-│  Relay 1 (Solenoid Valve 1):                       │
-│  [25] ──────┬── 1-ch Relay 10A IN                   │
+│  2CH Relay (Solenoid Valves 1 & 2):                │
 │  5V   ──────┬── Relay VCC                           │
 │  GND  ──────┬── Relay GND                           │
-│  Relay OUT ──┬── Solenoid 1 12V NC (+)              │
-│              └── 12V PSU (-)                        │
+│  [19] ──────┬── Relay IN1 (Solenoid 1)              │
+│  [18] ──────┬── Relay IN2 (Solenoid 2)              │
+│  COM1 ──────┬── Solenoid 1 +                        │
+│  COM2 ──────┬── Solenoid 2 +                        │
+│  NO1  ──────┬── PSU + (12V)                         │
+│  NO2  ──────┬── PSU + (12V)                         │
+│  Solenoid 1- ── PSU - (directly)                    │
+│  Solenoid 2- ── PSU - (directly)                    │
 │                                                     │
-│  Relay 2 (Solenoid Valve 2):                       │
-│  [13] ──────┬── 1-ch Relay 10A IN                   │
-│  5V   ──────┬── Relay VCC                           │
-│  GND  ──────┬── Relay GND                           │
-│  Relay OUT ──┬── Solenoid 2 12V NC (+)              │
-│              └── 12V PSU (-)                        │
+│  Reset Button (WiFi creds reset):                  │
+│  [27] ──────┬── Arcade Button Pin 2                 │
+│  GND  ──────┬── Arcade Button Pin 1                 │
 │                                                     │
 │  WiFi + ESP-NOW RX (receives from room ESP32s)     │
 │  [2]  ──────┬── Built-in LED (status)               │
+│                                                     │
+│  Power: 12V jack input (6.5–16V from PSU)          │
 └─────────────────────────────────────────────────────┘
 ```
-> Main ESP32 is centralized before the rooms. It controls both solenoid valves and reads the calibrated flow sensor. Room ESP32s report RFID taps and leak alerts wirelessly via ESP-NOW.
+> Main ESP32 is centralized before the rooms. It controls both solenoid valves via 2CH relay and reads the calibrated flow sensor. Room ESP32s report RFID taps and leak alerts wirelessly via ESP-NOW. Arcade button on GPIO 27 allows resetting WiFi credentials.
 
 ---
 
