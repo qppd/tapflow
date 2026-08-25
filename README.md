@@ -94,6 +94,24 @@ Follow these steps **in order**. Each step links to the detailed guide.
 | [setup.md](./docs/setup.md) | Full phased walkthrough (reference) |
 | [esp32-firmware-complete-guide.md](./docs/esp32-firmware-complete-guide.md) | **Complete ESP32 firmware** (room + main, ESP-NOW, ArduinoJson, relay control) |
 | [troubleshooting.md](./docs/troubleshooting.md) | Serial commands, LED codes, common fixes |
+| [anomaly-detection-guide.md](./docs/anomaly-detection-guide.md) | **Anomaly detection** — algorithms, ESP32 modules, Firebase structure |
+| [leak-detection-advanced-guide.md](./docs/leak-detection-advanced-guide.md) | **Leak detection** — 6 rules + mass balance + pulse analysis |
+| [module-integration-guide.md](./docs/module-integration-guide.md) | **Module integration** — how all ESP32 modules wire together |
+| [web-dashboard-alerts-guide.md](./docs/web-dashboard-alerts-guide.md) | **Web dashboard** — Next.js UI for anomaly/leak detection |
+
+---
+
+### Phase 6: Anomaly + Leak Detection System
+
+| Step | Action | Guide | Est. Time |
+|------|--------|-------|----------|
+| 19 | **Implement anomaly detection** — Rate-of-change, baseline deviation, burst detection on room ESP32s | [anomaly-detection-guide.md](./docs/anomaly-detection-guide.md) | 2 hrs |
+| 20 | **Implement leak detection** — 6 core rules + mass balance + post-shutoff verification | [leak-detection-advanced-guide.md](./docs/leak-detection-advanced-guide.md) | 2 hrs |
+| 21 | **Integrate modules** — Wire detection modules into ESP32 main loops, ESP-NOW payload, Firebase push | [module-integration-guide.md](./docs/module-integration-guide.md) | 2 hrs |
+| 22 | **Build dashboard alerts** — Real-time alert feed, severity badges, threshold config, trend charts | [web-dashboard-alerts-guide.md](./docs/web-dashboard-alerts-guide.md) | 3 hrs |
+| 23 | **Validate** — Test all 6 leak rules, anomaly detection, false positive reduction, Firebase sync | All detection guides | 2 hrs |
+
+> **Detection order:** anomaly-detection-guide → leak-detection-advanced-guide → module-integration-guide → web-dashboard-alerts-guide
 
 ---
 
@@ -127,6 +145,7 @@ After each phase, verify:
 - [ ] **Phase 3:** ESP-NOW link working — room data + RFID tags appear on main ESP32 Serial Monitor
 - [ ] **Phase 4:** 5L bucket test → < 3% error on each sensor
 - [ ] **Phase 5:** Main ESP32 connected to WiFi, data visible in Firebase RTDB, Next.js dashboard shows live data
+- [ ] **Phase 6:** All 6 leak rules trigger correctly, anomaly detection working, dashboard shows real-time alerts
 
 ---
 
