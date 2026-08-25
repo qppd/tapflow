@@ -45,3 +45,6 @@ venv/
 
 # 3D Models
 model/
+
+# AI Prompts
+docs/chatgpt-3d-model-prompt.md
