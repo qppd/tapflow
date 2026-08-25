@@ -34,10 +34,11 @@
 | 12 | **220V AC to 12V 5A Switching Power Supply** (S-60-12, 60W, LRS-50/60-12) | **4** | ₱280 | **₱1,120** | [Shopee](https://shopee.ph/Switching-Power-Supply-(S-60-12)-12V-5A-60W-LRS-50-5V-10A-12V-4.2A-24V-2.1A-50W-i.18252381.363361010?extraParams=%7B%22display_model_id%22%3A164466543878%2C%22model_selection_logic%22%3A3%7D) |
 | 13 | **12V to 5V Buck Converter** (LM2596S, DC-DC Step-Down Module, USB output) | **4** | ₱65 | **₱260** | [Shopee](https://shopee.ph/24V-12V-to-5V-Buck-Converter-USB-Mobile-Phone-DC-DC-Step-Down-Module-LM2596S-HW-688-HCW-P715-i.18252381.1920327681?extraParams=%7B%22display_model_id%22%3A80023951201%2C%22model_selection_logic%22%3A3%7D) |
 | 14 | **USB to Micro USB Data Cable** (braided, 1m) | **4** | ₱120 | **₱480** | [Makerlab Shopee](https://shopee.ph/search?keyword=micro%20usb%20cable%20makerlab) |
+| 15 | **12V Male DC Power Jack Adapter** (5.5×2.1mm, screw terminal) | **4** | ₱9 | **₱36** | [Lazada](https://www.lazada.com.ph/products/pdp-i2329636296-s29303848339.html) |
 
-**Power Subtotal:** **₱1,860**
+**Power Subtotal:** **₱1,896**
 
-> **Note:** Each ESP32 (3 room + 1 main) has its own dedicated 12V 5A power supply and buck converter. The main ESP32 PSU powers 12V solenoid valves directly, while the LM2596S buck converter steps down 12V → 5V for the ESP32 and sensors.
+> **Note:** Each ESP32 (3 room + 1 main) has its own dedicated 12V 5A power supply, buck converter, and DC jack adapter. The DC jack adapter converts the PSU's screw terminal output to a 5.5×2.1mm barrel plug for the expansion board's power jack. The main ESP32 PSU powers 12V solenoid valves directly via 2CH relay.
 
 ---
 
@@ -62,9 +63,9 @@
 
 | Tier | Category | ₱ | Notes |
 |------|----------|---|-------|
-| **MVP** | 1 room (RFID + leak sensor) + main (2 solenoids + calibrated sensor) + PPE pipe | **~₱7,710** | Prove ESP-NOW + Firebase concept |
-| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱7,710** | Full multi-room system |
-| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,710** | Production-ready! |
+| **MVP** | 1 room (RFID + leak sensor) + main (2 solenoids + calibrated sensor) + PPE pipe | **~₱7,746** | Prove ESP-NOW + Firebase concept |
+| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱7,746** | Full multi-room system |
+| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,746** | Production-ready! |
 
 ---
 
