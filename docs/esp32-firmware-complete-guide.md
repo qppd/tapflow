@@ -92,21 +92,6 @@ arduino
 # Or Applications Menu → Programming → Arduino IDE 2
 ```
 
-### Why pip?
-
-- Official Arduino distribution for Linux ARM64
-- Automatic updates via `pip install --upgrade arduino`
-- No Flatpak sandbox issues with serial ports
-- Works natively on Raspberry Pi OS Trixie 64-bit
-
-### Alternative: Flatpak (if pip fails)
-
-```bash
-flatpak install flathub cc.arduino.IDE2
-flatpak run cc.arduino.IDE2
-# Grant serial permission:
-flatpak permission-set device serial cc.arduino.IDE2 yes
-```
 
 ---
 

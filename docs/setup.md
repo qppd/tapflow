@@ -89,16 +89,7 @@ git clone https://github.com/qppd/wmldad.git
 cd wmldad
 ```
 
-### Step 2.4: Install Python Dependencies
 
-```bash
-cd rpi/
-pip install -r requirements.txt
-# or manually:
-# No Python deps needed — ESP32 talks to Firebase directly via WiFi
-```
-
----
 
 ## Phase 3: Hardware Assembly
 

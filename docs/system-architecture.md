@@ -6,7 +6,6 @@ Smart water monitoring system with **per-room leak detection** using **ESP32 mes
 
 3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking) and a **YF-S201 flow sensor** (leak detection, uncalibrated). Room ESP32s transmit readings wirelessly via **ESP-NOW** to a centralized main ESP32. The main ESP32 controls **2 solenoid valves via relays**, reads a **calibrated flow sensor** (accurate metering), and connects to WiFi to push data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
 
-> **No Raspberry Pi needed!** ESP32 talks to Firebase directly via WiFi.
 
 ---
 
@@ -139,14 +138,14 @@ Step 7: USER ACTION (Next.js on Vercel)
 | Decision | Rationale |
 |----------|-----------|
 | **ESP-NOW for room-to-main** | Low-latency, no WiFi router needed, works offline, peer-to-peer |
-| **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, no RPi bridge, stream + callback support |
+| **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, stream + callback support |
 | **WiFi on main ESP32 only** | Room ESP32s stay offline (ESP-NOW only) — saves power, no WiFi config per room |
 | **Centralized solenoid control** | Main ESP32 controls both solenoid valves — room ESP32s only handle RFID + leak detection |
 | **RFID per room** | MFRC522 tracks who used water (tap card to log usage) |
 | **Firebase RTDB** | Real-time sync, ESP32 reads/writes directly, no backend server needed |
 | **Firebase Auth** | User login (email/password, Google sign-in) — no custom auth system |
 | **Next.js on Vercel** | Serverless, auto-deploy from Git, free tier sufficient |
-| **No RPi needed** | ESP32 handles everything — WiFi, Firebase, sensors, RFID, relays |
+
 | **6 Leak Detection Rules** | No RFID+flow, session ended+flow, solenoid OFF+flow, continuous flow, drip, night flow |
 | **RFID-based leak context** | RFID session state tells firmware whether flow is expected or a leak |
 | **Check Valves per Room** | Prevents backflow contamination between rooms |
@@ -169,7 +168,6 @@ Step 7: USER ACTION (Next.js on Vercel)
 | 12V 5A Switching PSU (S-60-12 / LRS-60-12) | 4 | 1 per ESP32 — Mains power → 12V |
 | LM2596S Buck Converter | 4 | 1 per ESP32 — 12V → 5V |
 | Waterproof ABS Enclosure IP67 (175×125×75mm) | 4 | One per ESP32 |
-| ~~Raspberry Pi~~ | ~~1~~ | ~~Serial-to-Firebase bridge~~ — **NO LONGER NEEDED** |
 
 ---
 
@@ -199,7 +197,6 @@ LM2596S Buck Converter (12V → 5V)
 
 ## References
 
-- [Raspberry Pi OS Documentation](https://www.raspberrypi.com/documentation/computers/os.html)
-- [Raspberry Pi Imager GitHub](https://github.com/raspberrypi/rpi-imager)
-- [Raspberry Pi Forums - OS Installation](https://forums.raspberrypi.com/viewforum.php?f=117)
-- [Debian Trixie Release Notes](https://www.debian.org/releases/trixie/)
+- [ESP32 Arduino Core Documentation](https://docs.espressif.com/projects/arduino-esp32/en/latest/)
+- [Firebase-ESP-Client (mobizt)](https://github.com/mobizt/Firebase-ESP-Client)
+- [Next.js Documentation](https://nextjs.org/docs)

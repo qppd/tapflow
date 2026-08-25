@@ -21,7 +21,6 @@ Room 3 ESP32 ──┘            (centralized)              │
 - **Firebase** — Realtime Database (data storage) + Authentication (user login)
 - **Next.js on Vercel** — web dashboard, real-time monitoring, leak alerts, usage logging per person
 
-> **No Raspberry Pi needed!** Main ESP32 talks to Firebase directly via WiFi.
 
 ---
 

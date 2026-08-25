@@ -51,18 +51,6 @@ Serial.println();  // Newline delimiter for JSON Lines
 
 ---
 
-## USB Serial Communication Stack (Main ESP32 → RPi)
-
-| Layer | Technology | Protocol | Details |
-|-------|------------|----------|---------|
-| **Physical** | USB Micro-B / USB-C cable | USB 2.0 | Data + power (5V backup) |
-| **CDC/ACM** | CP2102 / CH340 USB-UART bridge | UART | Appears as `/dev/ttyUSB0` or `/dev/ttyUSB1` on RPi |
-| **Baud Rate** | 921600 | — | High throughput for 3 rooms @ 5s interval |
-| **Format** | JSON Lines (NDJSON) | UTF-8 | One JSON object per line |
-| **RPi Driver** | pyserial + asyncio | Python | Auto-detects ESP32 via VID:PID |
-
----
-
 ## WiFi + Firebase Stack (Main ESP32)
 
 | Layer | Technology | Version | Purpose |
@@ -72,7 +60,6 @@ Serial.println();  // Newline delimiter for JSON Lines
 | **Stream** | Firebase.onValue() | — | Real-time listener for commands from dashboard |
 | **Callback** | Firebase.setCallback() | — | React to data changes on Firebase |
 | **Auth** | Firebase ESP32 Auth | — | Optional: authenticate ESP32 with Firebase |
-| **No RPi needed** | — | — | ESP32 handles everything directly |
 
 ---
 
@@ -125,9 +112,9 @@ Serial.println();  // Newline delimiter for JSON Lines
 | **Web Framework** | **Next.js** | Flask, Django, Express | React ecosystem, Vercel auto-deploy, TypeScript |
 | **Database** | **Firebase Realtime Database** | SQLite, PostgreSQL, Supabase | Real-time sync, no backend server, free tier |
 | **Authentication** | **Firebase Authentication** | Custom JWT, Auth0, Clerk | Free, integrates with RTDB, Google sign-in |
-| **Hosting** | **Vercel** | Netlify, AWS, RPi | Free tier, auto-deploy from Git, serverless |
+| **Hosting** | **Vercel** | Netlify, AWS | Free tier, auto-deploy from Git, serverless |
 | ESP32 38-pin ESP32 Dev Module | 30-pin, ESP32-C3, ESP8266 | More GPIOs, ESP-NOW support, 4 boards total |
-| **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, stream + callbacks | RPi bridge + firebase-admin | No extra hardware, no Python needed |
+| **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, stream + callbacks | Custom backend | No extra hardware needed |
 
 ---
 
@@ -138,4 +125,4 @@ Serial.println();  // Newline delimiter for JSON Lines
 - **Main ESP32**: WiFi + mobizt Firebase-ESP-Client → pushes to Firebase RTDB directly
 - **Firebase**: Realtime Database (data) + Authentication (user login)
 - **Next.js on Vercel**: Web dashboard with real-time Firebase sync, deployed from Git
-- **No RPi needed!** ESP32 handles everything — sensors, RFID, relays, WiFi, Firebase
+- ESP32 handles everything — sensors, RFID, relays, WiFi, Firebase

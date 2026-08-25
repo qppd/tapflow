@@ -84,7 +84,7 @@ Normal: balance < 10% of inlet
 
 ## 3. USB Serial Issues
 
-### ESP32 Not Detected on RPi
+### ESP32 Not Detected on Computer
 
 ```bash
 # Check if device appears
@@ -143,9 +143,7 @@ ls -la /dev/ttyESP32
 
 ---
 
-## 4. RPi (Raspberry Pi) Issues
-
-### Dashboard Not Loading (Next.js)
+## 4. Dashboard / Firebase Issues
 
 | Cause | Check | Fix |
 |-------|-------|-----|
@@ -153,34 +151,6 @@ ls -la /dev/ttyESP32
 | Firebase config wrong | Check `.env.local` in Next.js project | Verify API key, database URL |
 | Firebase Auth not enabled | Firebase Console → Authentication | Enable Email/Password + Google |
 | RTDB rules blocking | Firebase Console → Realtime Database → Rules | Set read/write to true for testing |
-
-### RPi Bridge Not Pushing to Firebase
-
-```bash
-# Check bridge logs
-journalctl -u wmldad-bridge.service -f
-
-# Check Firebase connection
-python3 -c "import firebase_admin; print('OK')"
-```
-
-| Problem | Solution |
-|---------|----------|
-| `ModuleNotFoundError` | Activate venv → `pip install -r requirements.txt` |
-| `ImportError: serial_reader` | Check imports |
-| `Address already in use` | Kill existing process: `sudo fuser -k 5000/tcp` |
-| `Permission denied` on serial | Add user to dialout group, reboot |
-
-### Memory Error
-
-```bash
-# Check RAM
-free -h
-
-# Add swap if needed
-sudo dphys-swapfile setup
-sudo dphys-swapfile swapon
-```
 
 ---
 
@@ -237,10 +207,7 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 - [ ] Is USB cable a **data cable**? (not charge-only)
 - [ ] Is Serial Monitor baud set to **921600**?
 - [ ] Is the flow sensor arrow pointing **WITH** water flow?
-- [ ] Are WiFi SSID and password correct? (for OTA only)
-- [ ] Is `PULSE_PER_LITER` calibrated for each sensor?
-- [ ] Is the virtual environment activated on RPi?
-- [ ] Did you run `pip install -r requirements.txt`?
+- [ ] Are WiFi SSID and password correct?
 - [ ] Is `PULSE_PER_LITER` calibrated for each sensor?
 
 ---
@@ -310,11 +277,9 @@ Connect ESP32 via USB, open Serial Monitor at **921600 baud**, send:
 ## 11. Getting Help
 
 If stuck:
-1. Check `journalctl -u water-meter.service -f` on RPi
-2. Check ESP32 Serial Monitor at 921600 baud
-3. Run the diagnostic commands above
-4. Open GitHub Issue with:
+1. Check ESP32 Serial Monitor at 921600 baud
+2. Run the diagnostic commands above
+3. Open GitHub Issue with:
    - Serial Monitor output (last 50 lines)
-   - RPi logs (`journalctl -u water-meter -n 100`)
    - Your `config.h` (remove WiFi passwords!)
    - Sensor types and plumbing layout

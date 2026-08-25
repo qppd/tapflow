@@ -318,7 +318,7 @@ graph LR
 > - **220V AC** → **12V 5A Switching PSU (S-60-12)** → **LM2596S Buck Converter** → **5V** for ESP32 + sensors
 > - **12V rail** powers solenoid valves and SSR relays directly per room
 > - **4 total:** 3 for room ESP32s + 1 for main ESP32
-> - Main ESP32 connects to WiFi — no USB cable to RPi needed
+> - Main ESP32 connects to WiFi directly
 
 ---
 

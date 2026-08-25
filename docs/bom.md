@@ -58,29 +58,13 @@
 
 ---
 
-## 4. Raspberry Pi (NOT NEEDED)
-
-> **No Raspberry Pi required!** Main ESP32 connects to Firebase directly via WiFi using mobizt Firebase-ESP-Client.
-
----
-
-## Already Purchased (Not in BOM)
-
-| Item | Qty | Notes |
-|------|-----|-------|
-| ~~Raspberry Pi 4/5~~ | ~~1~~ | ~~No longer needed — ESP32 handles everything~~ |
-
----
-
 ## Total Cost Summary
 
 | Tier | Category | ₱ | Notes |
 |------|----------|---|-------|
 | **MVP** | 1 room (RFID + leak sensor) + main (2 solenoids + calibrated sensor) + PPE pipe | **~₱7,710** | Prove ESP-NOW + Firebase concept |
 | **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱7,710** | Full multi-room system |
-| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,710** | Production-ready — no RPi needed! |
-
-> **Note:** No Raspberry Pi needed — ESP32 connects to Firebase directly via WiFi. Firebase free tier and Vercel free tier keep costs at zero for hosting.
+| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,710** | Production-ready! |
 
 ---
 
