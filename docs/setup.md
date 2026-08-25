@@ -435,10 +435,9 @@ npm run dev
 ## Wiring Resources
 
 ### Interactive Wiring Diagram (Cirkit Designer)
-**🔗 [View Interactive Wiring Diagram](https://app.cirkitdesigner.com/project/4f173a2b-5656-48ff-b98f-183483fecb1e)**
+**🔗 [View Interactive Wiring Diagram](https://app.cirkitdesigner.com/project/b0b4579e-313d-4faa-9cd1-f955daa204a5)**
 
 ### Static Wiring Diagram (PNG)
 ![Wiring Diagram](../wiring/wmldad.png)
 
 ### Wiring Source File
-[Download .ckt file](../wiring/wmldad.ckt) — Open in [Cirkit Designer](https://app.cirkitdesigner.com/)

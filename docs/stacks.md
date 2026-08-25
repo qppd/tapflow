@@ -101,7 +101,7 @@ Serial.println();  // Newline delimiter for JSON Lines
 | Main ESP32 → Firebase | WiFi + HTTPS | JSON (RTDB) | Every 5 sec |
 | Firebase → Main ESP32 | WiFi + HTTPS | Callbacks/Streams | On command |
 | Firebase → Next.js | WebSocket (RTDB) | Real-time sync | Instant |
-| Room ESP32 → SSR → Solenoid | GPIO HIGH/LOW | Digital signal | Smart: ON when flow, OFF when idle |
+| Main ESP32 → Relay → Solenoid | GPIO HIGH/LOW | Digital signal | Smart: ON when flow, OFF when idle |
 | User → Dashboard | HTTPS | Internet | Firebase Auth login |
 
 ---
@@ -133,9 +133,9 @@ Serial.println();  // Newline delimiter for JSON Lines
 
 ## Stack Summary
 
-- **Room ESP32s ×3**: Arduino + ArduinoJson + MFRC522 RFID → 1 flow sensor + SSR/solenoid each → ESP-NOW to main
-- **Main ESP32**: ESP-NOW receiver → USB Serial (921600 baud, JSON Lines) to RPi
+- **Room ESP32s ×3**: Arduino + ArduinoJson + MFRC522 RFID → 1 flow sensor (leak detection) each → ESP-NOW to main
+- **Main ESP32 (centralized)**: ESP-NOW receiver + 2× relay (solenoid valves) + calibrated flow sensor
 - **Main ESP32**: WiFi + mobizt Firebase-ESP-Client → pushes to Firebase RTDB directly
 - **Firebase**: Realtime Database (data) + Authentication (user login)
 - **Next.js on Vercel**: Web dashboard with real-time Firebase sync, deployed from Git
-- **No RPi needed!** ESP32 handles everything — sensors, RFID, SSR, WiFi, Firebase
+- **No RPi needed!** ESP32 handles everything — sensors, RFID, relays, WiFi, Firebase

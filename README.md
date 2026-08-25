@@ -1,6 +1,6 @@
 # WMLDAD — Smart Water Monitoring System
 
-> **A Research Project** — Smart Water Monitoring System that detects leaks and per-room consumption using ESP32 mesh (ESP-NOW), RFID usage tracking, SSR solenoid valve control, and a Next.js web dashboard on Vercel with Firebase Realtime Database + Authentication.
+> **A Research Project** — Smart Water Monitoring System that detects leaks and per-room consumption using ESP32 mesh (ESP-NOW), RFID usage tracking, centralized solenoid valve control, and a Next.js web dashboard on Vercel with Firebase Realtime Database + Authentication.
 
 ---
 
@@ -9,15 +9,15 @@
 ```
 Room 1 ESP32 ──┐
 Room 2 ESP32 ──┼── ESP-NOW ──▶ Main ESP32 ──WiFi──▶ Firebase RTDB
-Room 3 ESP32 ──┘                                      │
-     │                                                ▼
-     ├── RFID Reader (MFRC522) — tap card      Next.js on Vercel
-     ├── Flow Sensor (YF-S201) — measure       (Web Dashboard)
-     └── SSR + Solenoid Valve — shutoff
+Room 3 ESP32 ──┘            (centralized)              │
+     │                      ├── 2× Relay + Solenoid    ▼
+     ├── RFID Reader        ├── Calibrated Flow Sensor  Next.js on Vercel
+     └── Flow Sensor        │   (GPIO 34)               (Web Dashboard)
+       (leak detection)     └── WiFi to Firebase
 ```
 
-- **3 Room ESP32s** — each has RFID reader (MFRC522), flow sensor (YF-S201), Fotek 40A SSR + solenoid valve. Sends readings via ESP-NOW.
-- **1 Main ESP32** — receives ESP-NOW data from all rooms, pushes to Firebase RTDB via WiFi using [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client). Also receives commands/callbacks from Firebase.
+- **3 Room ESP32s** — each has RFID reader (MFRC522) and flow sensor (YF-S201, uncalibrated, leak detection only). Sends readings via ESP-NOW.
+- **1 Main ESP32 (centralized)** — receives ESP-NOW data from all rooms, controls 2 solenoid valves via relays, reads calibrated flow sensor (GPIO 34), pushes to Firebase RTDB via WiFi using [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client). Placed before the rooms for centralized control.
 - **Firebase** — Realtime Database (data storage) + Authentication (user login)
 - **Next.js on Vercel** — web dashboard, real-time monitoring, leak alerts, usage logging per person
 
@@ -44,8 +44,8 @@ Follow these steps **in order**. Each step links to the detailed guide.
 
 | Step | Action | Guide | Est. Time |
 |------|--------|-------|-----------|
-| 3 | **Wire 3× Room ESP32** — Each gets MFRC522 RFID, YF-S201 flow sensor, Fotek 40A SSR + solenoid valve | [block-diagram.md](./docs/block-diagram.md) | 2 hrs |
-| 4 | **Wire Main ESP32** — Power only (no SSR — each room handles its own, WiFi connects to Firebase) | [block-diagram.md](./docs/block-diagram.md) | 30 min |
+| 3 | **Wire 3× Room ESP32** — Each gets MFRC522 RFID + YF-S201 flow sensor (leak detection) | [block-diagram.md](./docs/block-diagram.md) | 1 hr |
+| 4 | **Wire Main ESP32** — 2× relay (solenoid valves) + calibrated flow sensor + WiFi to Firebase | [block-diagram.md](./docs/block-diagram.md) | 1 hr |
 | 5 | **Plumbing** — Install sensors in-line with check valves (arrow = flow direction) | [setup.md](./docs/setup.md) | 2–4 hrs |
 | 6 | **Enclosure** — Mount ESP32s in IP67 boxes with cable glands | [block-diagram.md](./docs/block-diagram.md) | 1 hr |
 
@@ -93,7 +93,7 @@ Follow these steps **in order**. Each step links to the detailed guide.
 | [BOM.md](./docs/bom.md) | Parts list with Shopee links, prices |
 | [block-diagram.md](./docs/block-diagram.md) | Pinout, wiring, ESP-NOW topology, enclosure layout |
 | [setup.md](./docs/setup.md) | Full phased walkthrough (reference) |
-| [esp32-firmware-complete-guide.md](./docs/esp32-firmware-complete-guide.md) | **Complete ESP32 firmware** (room + main, ESP-NOW, ArduinoJson, SSR control) |
+| [esp32-firmware-complete-guide.md](./docs/esp32-firmware-complete-guide.md) | **Complete ESP32 firmware** (room + main, ESP-NOW, ArduinoJson, relay control) |
 | [troubleshooting.md](./docs/troubleshooting.md) | Serial commands, LED codes, common fixes |
 
 ---
@@ -106,14 +106,13 @@ Follow these steps **in order**. Each step links to the detailed guide.
 | ESP32 Expansion Board | 4 | Screw terminals for each ESP32 |
 | MFRC522 RFID Reader | 3 | SPI, 1 per room — usage tracking |
 | RFID Cards/Tags | 3+ | Mifare Classic 1K — one per user |
-| YF-S201 Flow Sensor | 3 | 1/2" NPT, Hall effect, 1 per room |
-| Fotek 40A SSR | 3 | Solid-state relay, 1 per room |
-| Solenoid Valve 1/2" | 3 | NC (normally closed), 12V DC, 1 per room |
-| Check Valve 1/2" | 3 | Brass, prevent backflow |
+| YF-S201 Flow Sensor | 4 | 3 rooms (leak detection, uncalibrated) + 1 main (calibrated) |
+| 1-ch Relay 10A | 2 | Optocoupler, main ESP32 controls 2 solenoids |
+| Solenoid Valve 1/2" | 2 | NC (normally closed), 12V DC, centralized at main |
+| Check Valve 1/2" | 2 | Brass, prevent backflow |
 | PPE Pipe + Fittings | 1 set | 1/2" Polypropylene, heat-fused joints |
-| 12V 5A PSU + LM2596S buck | 1 | 220V → 12V → 5V |
+| 12V 5A PSU + LM2596S buck | 4 | 220V → 12V → 5V, 1 per ESP32 |
 | IP67 ABS Enclosure | 4 | 175×125×75mm, one per ESP32 |
-| Perf board 20×80mm | 4 | Soldered connections |
 
 ---
 
@@ -122,7 +121,7 @@ Follow these steps **in order**. Each step links to the detailed guide.
 After each phase, verify:
 
 - [ ] **Phase 1:** All parts received, repo cloned
-- [ ] **Phase 2:** All 3 room ESP32s powered, RFID reads cards, sensors pulse, SSR triggers solenoid
+- [ ] **Phase 2:** All 3 room ESP32s powered, RFID reads cards, sensors pulse; main ESP32 triggers solenoids via relay
 - [ ] **Phase 3:** ESP-NOW link working — room data + RFID tags appear on main ESP32 Serial Monitor
 - [ ] **Phase 4:** 5L bucket test → < 3% error on each sensor
 - [ ] **Phase 5:** Main ESP32 connected to WiFi, data visible in Firebase RTDB, Next.js dashboard shows live data

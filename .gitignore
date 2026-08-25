@@ -39,3 +39,6 @@ credentials.h
 .env
 venv/
 .venv/
+
+# Cirkit Designer
+*.ckt

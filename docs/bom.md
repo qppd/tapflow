@@ -1,6 +1,6 @@
 # Bill of Materials (BOM) — Water Meter with Leak Detection
 
-> **System:** 3 room ESP32s (RFID + flow sensor + SSR + solenoid) → ESP-NOW → Main ESP32 → WiFi → Firebase RTDB → Next.js on Vercel
+> **System:** Main ESP32 (WiFi + 2 relays + 2 solenoids + calibrated flow sensor) ← ESP-NOW ← 3 Room ESP32s (RFID + leak detection flow sensor) → Firebase RTDB → Next.js on Vercel
 > **Supplier Priority:** [Makerlab Electronics](https://shopee.ph/makerlabelectronics) → 4–5 alternatives  
 > **Prices:** Estimated in Philippine Peso (₱), July 2026
 
@@ -14,50 +14,34 @@
 | 2 | **ESP32 38-Pin Expansion Board** (screw terminals, labeled) | **4** | ₱180 | **₱720** | [Makerlab Shopee](https://shopee.ph/search?keyword=esp32%20expansion%20board%20makerlab) |
 | 3 | **MFRC522 RFID Reader Module** (SPI, 13.56MHz) | **3** | ₱80 | **₱240** | [Makerlab Shopee](https://shopee.ph/search?keyword=mfrc522%20rfid%20makerlab) |
 | 4 | **RFID Card / Tag** (Mifare Classic 1K) | 3+ | ₱30 | ₱90 | [Makerlab Shopee](https://shopee.ph/search?keyword=mifare%20classic%201k%20card) |
-| 5 | **YF-S201 Water Flow Sensor** 1/2" thread, Hall-effect | **3** | ₱180 | **₱540** | [Makerlab Shopee](https://shopee.ph/search?keyword=yf-s201%20flow%20sensor%20makerlab) |
-| 6 | **Fotek 40A SSR** (solid-state relay, DC control) | **3** | ₱120 | **₱360** | [Makerlab Shopee](https://shopee.ph/search?keyword=fotek%2040a%20ssr%20makerlab) |
-| 7 | **1-ch Relay 10A** (optocoupler, for solenoid) | **3** | ₱50 | **₱150** | [Makerlab Shopee](https://shopee.ph/search?keyword=1ch%20relay%2010a%20optocoupler%20makerlab) |
-| 8 | **Solenoid Valve 1/2" NC** (12V DC, normally closed) | **3** | ₱250 | **₱750** | [Makerlab Shopee](https://shopee.ph/search?keyword=solenoid%20valve%2012v%201%2F2%20nc) |
-| 8 | **Check Valve 1/2"** Brass (non-return) | 3 | ₱120 | ₱360 | [Makerlab Shopee](https://shopee.ph/search?keyword=check%20valve%201%2F2%20makerlab) |
+| 5 | **YF-S201 Water Flow Sensor** 1/2" thread, Hall-effect | **4** | ₱180 | **₱720** | [Makerlab Shopee](https://shopee.ph/search?keyword=yf-s201%20flow%20sensor%20makerlab) |
+| 6 | **1-ch Relay 10A** (optocoupler, for solenoid) | **2** | ₱50 | **₱100** | [Makerlab Shopee](https://shopee.ph/search?keyword=1ch%20relay%2010a%20optocoupler%20makerlab) |
+| 7 | **Solenoid Valve 1/2" NC** (12V DC, normally closed) | **2** | ₱250 | **₱500** | [Makerlab Shopee](https://shopee.ph/search?keyword=solenoid%20valve%2012v%201%2F2%20nc) |
+| 8 | **Check Valve 1/2"** Brass (non-return) | 2 | ₱120 | ₱240 | [Makerlab Shopee](https://shopee.ph/search?keyword=check%20valve%201%2F2%20makerlab) |
 | 9 | **1/2" PPE Pipe** (Polypropylene, 4m length) | 2 | ₱150 | ₱300 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%201%2F2%20makerlab) |
 | 10 | **1/2" PPE Pipe Fittings** (tees, elbows, couplers, nipples) | 1 set | ₱200 | ₱200 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%20fitting%20set) |
 | 11 | **PTFE Thread Seal Tape** (Teflon, 10m roll) | 2 | ₱20 | ₱40 | [Makerlab Shopee](https://shopee.ph/search?keyword=teflon%20tape%20makerlab) |
 | 12 | **PPR Welding Machine** (for heat-fusing PPE joints) | 1 | ₱350 | ₱350 | [Shopee Hardware](https://shopee.ph/search?keyword=ppr%20welding%20machine%20makerlab) |
 
-**Core Subtotal:** **₱2,080**
+**Core Subtotal:** **₱5,300**
 
 ---
 
-## 2. Prototyping & Wiring
+## 2. Power Supply
 
 | # | Item | Qty | Unit (₱) | Total (₱) | Link |
 |---|------|-----|----------|-----------|------|
-| 8 | **Perf Board 20×80mm** (for permanent soldering) | **4** | ₱25 | **₱100** | [Makerlab Shopee](https://shopee.ph/search?keyword=perf%20board%2020x80%20makerlab) |
-| 9 | **JST-XH 3-pin Male** (for flow sensor side) | 3 | ₱10 | ₱30 | [Makerlab Shopee](https://shopee.ph/search?keyword=jst-xh%203pin%20male%20makerlab) |
-| 10 | **JST-XH 3-pin Female** (for board/perf board side) | 3 | ₱12 | ₱36 | [Makerlab Shopee](https://shopee.ph/search?keyword=jst-xh%203pin%20female%20makerlab) |
-| 11 | **Terminal Block 2-pin Blue** (5mm pitch, power input) | 4 | ₱15 | ₱60 | [Makerlab Shopee](https://shopee.ph/search?keyword=terminal%20block%202pin%20blue%20makerlab) |
+| 12 | **220V AC to 12V 5A Switching Power Supply** (S-60-12, 60W, LRS-50/60-12) | **4** | ₱280 | **₱1,120** | [Shopee](https://shopee.ph/Switching-Power-Supply-(S-60-12)-12V-5A-60W-LRS-50-5V-10A-12V-4.2A-24V-2.1A-50W-i.18252381.363361010?extraParams=%7B%22display_model_id%22%3A164466543878%2C%22model_selection_logic%22%3A3%7D) |
+| 13 | **12V to 5V Buck Converter** (LM2596S, DC-DC Step-Down Module, USB output) | **4** | ₱65 | **₱260** | [Shopee](https://shopee.ph/24V-12V-to-5V-Buck-Converter-USB-Mobile-Phone-DC-DC-Step-Down-Module-LM2596S-HW-688-HCW-P715-i.18252381.1920327681?extraParams=%7B%22display_model_id%22%3A80023951201%2C%22model_selection_logic%22%3A3%7D) |
+| 14 | **USB to Micro USB Data Cable** (braided, 1m) | **4** | ₱120 | **₱480** | [Makerlab Shopee](https://shopee.ph/search?keyword=micro%20usb%20cable%20makerlab) |
 
-**Wiring Subtotal:** **₱163**
+**Power Subtotal:** **₱1,860**
 
-> **Note:** JST-XH connectors are purchased **pre-crimped / ready-to-use** — no crimp kit or crimping tool needed. Just solder the female connectors to the perf board and plug in the sensor cables.
-
----
-
-## 3. Power Supply
-
-| # | Item | Qty | Unit (₱) | Total (₱) | Link |
-|---|------|-----|----------|-----------|------|
-| 12 | **220V AC to 12V 5A Switching Power Supply** (S-60-12, 60W, LRS-50/60-12) | 1 | ₱280 | ₱280 | [Shopee](https://shopee.ph/Switching-Power-Supply-(S-60-12)-12V-5A-60W-LRS-50-5V-10A-12V-4.2A-24V-2.1A-50W-i.18252381.363361010?extraParams=%7B%22display_model_id%22%3A164466543878%2C%22model_selection_logic%22%3A3%7D) |
-| 13 | **12V to 5V Buck Converter** (LM2596S, DC-DC Step-Down Module, USB output) | 1 | ₱65 | ₱65 | [Shopee](https://shopee.ph/24V-12V-to-5V-Buck-Converter-USB-Mobile-Phone-DC-DC-Step-Down-Module-LM2596S-HW-688-HCW-P715-i.18252381.1920327681?extraParams=%7B%22display_model_id%22%3A80023951201%2C%22model_selection_logic%22%3A3%7D) |
-| 14 | **USB to Micro USB Data Cable** (braided, 1m) | 1 | ₱120 | ₱120 | [Makerlab Shopee](https://shopee.ph/search?keyword=micro%20usb%20cable%20makerlab) |
-
-**Power Subtotal:** **₱465**
-
-> **Note:** The 12V 5A supply powers both the buck converter (for ESP32 + sensors at 5V) and can directly power 12V components if needed. The LM2596S buck converter steps down 12V → 5V for the ESP32 and flow sensors.
+> **Note:** Each ESP32 (3 room + 1 main) has its own dedicated 12V 5A power supply and buck converter. The main ESP32 PSU powers 12V solenoid valves directly, while the LM2596S buck converter steps down 12V → 5V for the ESP32 and sensors.
 
 ---
 
-## 4. Enclosure & Mounting
+## 3. Enclosure & Mounting
 
 | # | Item | Qty | Unit (₱) | Total (₱) | Link |
 |---|------|-----|----------|-----------|------|
@@ -70,11 +54,11 @@
 
 **Enclosure Subtotal:** **₱550**
 
-> **Note:** IP67 waterproof enclosure provides excellent protection for outdoor/wet environments. 175×125×75mm size fits ESP32, expansion board, buck converter, terminal block, and perf board with room for cable management.
+> **Note:** IP67 waterproof enclosure provides excellent protection for outdoor/wet environments. 175×125×75mm size fits ESP32, expansion board, buck converter, and room for cable management.
 
 ---
 
-## 5. Raspberry Pi (NOT NEEDED)
+## 4. Raspberry Pi (NOT NEEDED)
 
 > **No Raspberry Pi required!** Main ESP32 connects to Firebase directly via WiFi using mobizt Firebase-ESP-Client.
 
@@ -92,9 +76,9 @@
 
 | Tier | Category | ₱ | Notes |
 |------|----------|---|-------|
-| **MVP** | 1 room (RFID + sensor + SSR + solenoid) + main + PPE pipe | **~₱2,905** | Prove ESP-NOW + Firebase concept |
-| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱9,361** | Full multi-room system |
-| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱9,361** | Production-ready — no RPi needed! |
+| **MVP** | 1 room (RFID + leak sensor) + main (2 solenoids + calibrated sensor) + PPE pipe | **~₱7,710** | Prove ESP-NOW + Firebase concept |
+| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱7,710** | Full multi-room system |
+| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,710** | Production-ready — no RPi needed! |
 
 > **Note:** No Raspberry Pi needed — ESP32 connects to Firebase directly via WiFi. Firebase free tier and Vercel free tier keep costs at zero for hosting.
 
@@ -120,7 +104,7 @@
 
 ## Wiring Summary
 
-### Room ESP32 (×3) — each gets RFID + flow sensor + SSR + solenoid
+### Room ESP32 (×3) — each gets RFID + flow sensor (leak detection only)
 
 **MFRC522 RFID (SPI):**
 | RFID Pin | ESP32 Pin |
@@ -133,33 +117,45 @@
 | VCC | 3.3V |
 | GND | GND |
 
-**YF-S201 Flow Sensor:**
+**YF-S201 Flow Sensor (leak detection — uncalibrated):**
 | Wire | Pin |
 |------|-----|
 | Red (VCC) | 5V |
 | Black (GND) | GND |
 | Yellow (Signal) | GPIO 26 |
 
-**Fotek 40A SSR (room power):**
+### Main ESP32 — WiFi + Firebase + Centralized Control
+
+**YF-S201 Flow Sensor (calibrated — for accurate metering):**
 | Wire | Pin |
 |------|-----|
-| SSR CTRL | GPIO 25 |
-| SSR VCC | 5V |
-| SSR GND | GND |
+| Red (VCC) | 5V |
+| Black (GND) | GND |
+| Yellow (Signal) | GPIO 34 |
 
-**1-ch Relay 10A (solenoid valve):**
+**1-ch Relay 10A — Solenoid Valve 1:**
+| Wire | Pin |
+|------|-----|
+| Relay IN | GPIO 25 |
+| Relay VCC | 5V |
+| Relay GND | GND |
+| Relay OUT+ | Solenoid 1 12V NC (+) |
+| Relay OUT- | 12V PSU (-) |
+
+**1-ch Relay 10A — Solenoid Valve 2:**
 | Wire | Pin |
 |------|-----|
 | Relay IN | GPIO 13 |
 | Relay VCC | 5V |
 | Relay GND | GND |
-| Relay OUT+ | Solenoid 12V NC (+) |
-| Relay OUT- | 12V PSU (-) |### Main ESP32 — WiFi + Firebase
+| Relay OUT+ | Solenoid 2 12V NC (+) |
+| Relay OUT- | 12V PSU (-) |
 
 | Connection | Notes |
 |------------|-------|
 | WiFi | Connects to local network, pushes to Firebase RTDB |
-| Power | 5V from buck converter or USB |
+| ESP-NOW | Receives RFID + leak alerts from room ESP32s |
+| Power | 5V from buck converter (ESP32 + sensors) + 12V from PSU (solenoids) |
 
-> **ESP-NOW:** No wiring between room ESP32s and main ESP32 — communication is wireless via ESP-NOW protocol.
-> **Note:** Solenoid valves are 12V NC (normally closed). SSR fires to OPEN valve (allow water flow). On leak detection, SSR turns OFF → solenoid closes → water stops.
+> **Architecture:** Main ESP32 is centralized before the rooms. It controls both solenoid valves and reads the calibrated flow sensor. Room ESP32s only handle RFID and leak detection — they wirelessly report to main via ESP-NOW.
+> **Note:** Solenoid valves are 12V NC (normally closed). Relay fires to OPEN valve (allow water flow). On leak detection, relay turns OFF → solenoid closes → water stops.
