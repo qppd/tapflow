@@ -3,7 +3,7 @@
 > **Target:** 3 Room ESP32s + 1 Main ESP32 (38-pin Dev Module with Expansion Board)  
 > **Sensors:** 3× YF-S201 Flow Sensors (1 per room), 3× MFRC522 RFID  
 > **Communication:** ESP-NOW (room→main) + WiFi → Firebase RTDB (mobizt Firebase-ESP-Client)  
-> **Relay:** Fotek 40A SSR per room for solenoid valve control (local leak shutoff)  
+> **Relays:** Fotek 40A SSR per room (room power) + 1-ch relay per room (room solenoid) + 2CH relay on main (2 central solenoid valves)  
 > **IDE:** Arduino IDE 2.x (Windows/macOS/Linux)  
 > **Libraries:** ArduinoJson (≥ 7.x), MFRC522, Firebase-ESP-Client by mobizt (≥ 4.x), ESP-NOW (built-in)  
 > **Audience:** Complete setup from hardware to deployed firmware
@@ -44,9 +44,9 @@
 
 | Room ESP32 | Room | Flow GPIO | SSR GPIO | Relay GPIO | RFID Interface |
 |------------|------|-----------|----------|------------|----------------|
-| #1 | Bathroom | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
-| #2 | Kitchen | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
-| #3 | Shower | GPIO 26 | GPIO 25 | GPIO 13 | SPI (5,18,23,19,27) |
+| #1 | Bathroom | GPIO 26 | GPIO 27 | GPIO 25 | SPI (5,18,23,19 + RST 21) |
+| #2 | Kitchen | GPIO 26 | GPIO 27 | GPIO 25 | SPI (5,18,23,19 + RST 21) |
+| #3 | Shower | GPIO 26 | GPIO 27 | GPIO 25 | SPI (5,18,23,19 + RST 21) |
 
 ### Main ESP32
 
@@ -57,10 +57,14 @@
 
 | Component | Interface | Notes |
 |-----------|-----------|-------|
+| YF-S201 Flow Sensor (calibrated) | Pulse | GPIO 34 — accurate metering |
+| 2CH Relay with Optocoupler | Digital | IN1 → GPIO 19 (Solenoid 1), IN2 → GPIO 18 (Solenoid 2) |
+| Solenoid Valve ×2 | Via 2CH relay | 12V NC — centralized at main |
+| Reset Button | Digital | GPIO 27 — resets WiFi credentials |
 | USB Serial | CDC/ACM | Debug / firmware upload only |
 | Built-in LED | GPIO 2 | Status indication |
 
-> **Note:** Main ESP32 has no SSR — each room controls its own solenoid valve independently via local leak rules.
+> **Note:** Main ESP32 has no SSR — room power SSRs live on the room ESP32s. Each room controls its own solenoid via its 1-ch relay (GPIO 25); the main ESP32 drives the 2 centralized valves via the 2CH relay.
 
 ---
 
@@ -131,7 +135,7 @@ Click **OK**.
 | **Core Debug Level** | None |
 | **PSRAM** | Disabled |
 
-> ⚠️ **Critical:** Selecting **ESP32 Dev Module** ensures correct pin mapping for 38-pin board. The GPIO pins in `config.h` (26, 25, 33, 32) match this board definition.
+> ⚠️ **Critical:** Selecting **ESP32 Dev Module** ensures correct pin mapping for 38-pin board. The GPIO pins in `config.h` (26 flow, 27 SSR, 25 solenoid relay) match this board definition.
 
 ---
 
@@ -591,7 +595,7 @@ public:
 // config.h — ALL parameters in one place
 // Copy config.example.h to config.h and fill in your values
 // For ROOM ESP32s: set ROOM_ID and PIN_SENSOR
-// For MAIN ESP32: set IS_MAIN = true and configure SSR
+// For MAIN ESP32: set IS_MAIN = true and configure WiFi/Firebase + central relay pins
 
 #pragma once
 
@@ -626,14 +630,14 @@ public:
 
 // ===== RFID Reader (MFRC522 SPI) =====
 #define RFID_SS_PIN     5              // SDA/NSS
-#define RFID_RST_PIN    27
+#define RFID_RST_PIN    21
 // SPI: SCK=18, MOSI=23, MISO=19 (default ESP32 SPI)
 
 // ===== SSR Relay Pin (per room — powers room electrical line) =====
-#define PIN_SSR          25            // HIGH = room powered, LOW = room off
+#define PIN_SSR          27            // HIGH = room powered, LOW = room off
 
 // ===== Solenoid Relay Pin (per room — 1-ch 10A relay controls solenoid) =====
-#define PIN_RELAY        13            // HIGH = solenoid ON (water flows), LOW = shutoff
+#define PIN_RELAY        25            // HIGH = solenoid ON (water flows), LOW = shutoff
 // Solenoid is ONLY energized when flow sensor detects water usage
 // This prevents solenoid overheating from continuous energization
 #define SOLENOID_OFF_DELAY_MS  5000    // Solenoid OFF after 5 sec no flow (prevent heating)
@@ -651,6 +655,12 @@ public:
 #define NIGHT_START_HOUR 22              // 10 PM — night flow detection starts
 #define NIGHT_END_HOUR 5                 // 5 AM — night flow detection ends
 #define MIN_FLOW_THRESHOLD 0.01          // L/min — minimum detectable flow
+
+// ===== Main ESP32 Pins (IS_MAIN = true) =====
+#define PIN_SENSOR_MAIN       34   // Calibrated YF-S201 flow sensor (accurate metering)
+#define PIN_CENTRAL_RELAY1    19   // 2CH relay IN1 — central Solenoid 1
+#define PIN_CENTRAL_RELAY2    18   // 2CH relay IN2 — central Solenoid 2
+#define PIN_RESET_BUTTON      27   // Arcade button — resets WiFi credentials
 
 // ===== SPIFFS Logging =====
 #define MAX_OFFLINE_LOGS 500

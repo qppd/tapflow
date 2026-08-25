@@ -4,7 +4,7 @@
 
 Smart water monitoring system with **per-room leak detection** using **ESP32 mesh (ESP-NOW) → Main ESP32 → WiFi → Firebase → Next.js on Vercel**.
 
-3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking) and a **YF-S201 flow sensor** (leak detection, uncalibrated). Room ESP32s transmit readings wirelessly via **ESP-NOW** to a centralized main ESP32. The main ESP32 controls **2 solenoid valves via 2CH relay**, reads a **calibrated flow sensor** (accurate metering), and connects to WiFi to push data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
+3 room ESP32s each have an **MFRC522 RFID reader** (usage tracking), a **YF-S201 flow sensor** (leak detection, uncalibrated), a **Fotek 40A SSR** (room power), and a **1-ch relay driving a room-local solenoid valve**. Room ESP32s transmit readings wirelessly via **ESP-NOW** to a centralized main ESP32. The main ESP32 controls **2 centralized solenoid valves via 2CH relay**, reads a **calibrated flow sensor** (accurate metering), and connects to WiFi to push data directly to **Firebase Realtime Database** using the [mobizt Firebase-ESP-Client](https://github.com/mobizt/Firebase-ESP-Client) library. It also receives commands and callbacks from Firebase. The web dashboard is a **Next.js app deployed on Vercel** with **Firebase Authentication** for user login.
 
 ---
 
@@ -50,7 +50,7 @@ T-Connector → 1/2" PPE Pipe → Each Room
 graph TB
     subgraph "Room 1 — Bathroom"
         RFID1[MFRC522 RFID<br/>Usage Tracking] --> R1[Room ESP32 #1]
-        R1S[Flow Sensor<br/>YF-S201 (leak)] --> R1
+        R1S["Flow Sensor<br/>YF-S201 (leak)"] --> R1
         R1 --> SSR1[Fotek 40A SSR<br/>Room Power]
         SSR1 --> LIGHTS1[Lights/Fan/Appliances]
         R1 --> RELAY1[1-ch Relay<br/>Solenoid]
@@ -60,7 +60,7 @@ graph TB
 
     subgraph "Room 2 — Kitchen"
         RFID2[MFRC522 RFID<br/>Usage Tracking] --> R2[Room ESP32 #2]
-        R2S[Flow Sensor<br/>YF-S201 (leak)] --> R2
+        R2S["Flow Sensor<br/>YF-S201 (leak)"] --> R2
         R2 --> SSR2[Fotek 40A SSR<br/>Room Power]
         SSR2 --> LIGHTS2[Lights/Fan/Appliances]
         R2 --> RELAY2[1-ch Relay<br/>Solenoid]
@@ -70,7 +70,7 @@ graph TB
 
     subgraph "Room 3 — Shower"
         RFID3[MFRC522 RFID<br/>Usage Tracking] --> R3[Room ESP32 #3]
-        R3S[Flow Sensor<br/>YF-S201 (leak)] --> R3
+        R3S["Flow Sensor<br/>YF-S201 (leak)"] --> R3
         R3 --> SSR3[Fotek 40A SSR<br/>Room Power]
         SSR3 --> LIGHTS3[Lights/Fan/Appliances]
         R3 --> RELAY3[1-ch Relay<br/>Solenoid]
@@ -81,8 +81,11 @@ graph TB
     subgraph "Main ESP32 — Centralized"
         direction TB
         ESPRX[ESP-NOW Receiver<br/>Aggregates Room Data]
-        MFS[Calibrated Flow Sensor<br/>YF-S201 (GPIO 34)] --> MAIN[Main ESP32]
+        MFS["Calibrated Flow Sensor<br/>YF-S201 (GPIO 34)"] --> MAIN[Main ESP32]
         ESPRX --> MAIN
+        MAIN --> RELAY12[2CH Relay<br/>IN1→GPIO 19, IN2→GPIO 18]
+        RELAY12 --> MSOL1[Solenoid Valve 1<br/>12V NC]
+        RELAY12 --> MSOL2[Solenoid Valve 2<br/>12V NC]
         MAIN --> WIFI[WiFi + mobizt<br/>Firebase-ESP-Client]
     end
 
@@ -124,7 +127,8 @@ Step 2: LEAK DETECTION (per room)
 Step 3: CENTRALIZED SOLENOID CONTROL (main ESP32)
         Main ESP32 receives ESP-NOW data from rooms:
         → Validates RFID session + checks leak alerts
-        → Controls 2 solenoid valves via relays (GPIO HIGH/LOW)
+        → Controls the 2 centralized solenoid valves via 2CH relay (GPIO HIGH/LOW)
+        → (Each room also drives its own local solenoid via its 1-ch relay)
         → Reads calibrated flow sensor for accurate metering
         → Smart auto on/off prevents overheating
 
@@ -178,12 +182,11 @@ Step 7: USER ACTION (Next.js on Vercel)
 | **ESP-NOW for room-to-main** | Low-latency, no WiFi router needed, works offline, peer-to-peer |
 | **mobizt Firebase-ESP-Client** | Direct ESP32 → Firebase, stream + callback support |
 | **WiFi on main ESP32 only** | Room ESP32s stay offline (ESP-NOW only) — saves power, no WiFi config per room |
-| **Centralized solenoid control** | Main ESP32 controls both solenoid valves — room ESP32s only handle RFID + leak detection |
+| **Dual-layer solenoid control** | Main ESP32 controls the 2 centralized valves via 2CH relay; each room also drives its own solenoid via a 1-ch relay |
 | **RFID per room** | MFRC522 tracks who used water (tap card to log usage) |
 | **Firebase RTDB** | Real-time sync, ESP32 reads/writes directly, no backend server needed |
 | **Firebase Auth** | User login (email/password, Google sign-in) — no custom auth system |
 | **Next.js on Vercel** | Serverless, auto-deploy from Git, free tier sufficient |
-
 | **6 Leak Detection Rules** | No RFID+flow, session ended+flow, solenoid OFF+flow, continuous flow, drip, night flow |
 | **RFID-based leak context** | RFID session state tells firmware whether flow is expected or a leak |
 | **Check Valves per Room** | Prevents backflow contamination between rooms |
@@ -200,9 +203,11 @@ Step 7: USER ACTION (Next.js on Vercel)
 | ESP32 38-Pin Expansion Board | 4 | Screw terminals for wiring |
 | MFRC522 RFID Reader | 3 | 1 per room — usage tracking |
 | YF-S201 Flow Sensor | 4 | 3 rooms (leak detection, uncalibrated) + 1 main (calibrated) |
-| 1-ch Relay 10A | 2 | Main ESP32 — controls solenoid valves |
-| Solenoid Valve 1/2" NC | 2 | 12V DC, normally closed — centralized at main |
-| Check Valve 1/2" | 2 | One per solenoid line (backflow prevention) |
+| 2CH Relay with Optocoupler | 1 | Main ESP32 — controls 2 centralized solenoid valves |
+| 1-ch Relay 10A | 3 | 1 per room — controls the room solenoid valve |
+| Fotek 40A SSR | 3 | 1 per room — room power (lights/fan/appliances) |
+| Solenoid Valve 1/2" NC | 5 | 12V DC, normally closed — 2 central (main) + 3 room |
+| Check Valve 1/2" | 3 | One per room line (backflow prevention) |
 | 12V 5A Switching PSU (S-60-12 / LRS-60-12) | 4 | 1 per ESP32 — Mains power → 12V |
 | LM2596S Buck Converter | 4 | 1 per ESP32 — 12V → 5V |
 | Waterproof ABS Enclosure IP67 (175×125×75mm) | 4 | One per ESP32 |

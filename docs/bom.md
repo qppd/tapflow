@@ -1,6 +1,6 @@
 # Bill of Materials (BOM) — TapFlow
 
-> **System:** Main ESP32 (WiFi + 2 relays + 2 solenoids + calibrated flow sensor) ← ESP-NOW ← 3 Room ESP32s (RFID + leak detection flow sensor) → Firebase RTDB → Next.js on Vercel
+> **System:** Main ESP32 (WiFi + 2CH relay + 2 central solenoids + calibrated flow sensor) ← ESP-NOW ← 3 Room ESP32s (RFID + leak detection flow sensor + SSR + room solenoid) → Firebase RTDB → Next.js on Vercel
 > **Supplier Priority:** [Makerlab Electronics](https://shopee.ph/makerlabelectronics) → 4–5 alternatives  
 > **Prices:** Estimated in Philippine Peso (₱), July 2026
 
@@ -46,15 +46,17 @@ T-Connector → 1/2" PPE Pipe → Each Room
 | 3 | **MFRC522 RFID Reader Module** (SPI, 13.56MHz) | **3** | ₱80 | **₱240** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=mfrc522) |
 | 4 | **RFID Card / Tag** (Mifare Classic 1K) | 3+ | ₱30 | ₱90 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=mifare%20classic%201k) |
 | 5 | **YF-S201 Water Flow Sensor** 1/2" thread, Hall-effect | **4** | ₱180 | **₱720** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=yf-s201%20flow%20sensor) |
-| 6 | **1-ch Relay 10A** (optocoupler, for solenoid) | **2** | ₱50 | **₱100** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=relay%2010a%20optocoupler) |
-| 7 | **Solenoid Valve 1/2" NC** (12V DC, normally closed) | **2** | ₱250 | **₱500** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=solenoid%20valve%2012v) |
-| 8 | **Check Valve 1/2"** Brass (non-return) | 2 | ₱120 | ₱240 | [Shopee Hardware](https://shopee.ph/search?keyword=check%20valve%201%2F2%20brass) |
-| 9 | **1/2" PPE Pipe** (Polypropylene, 4m length) | 2 | ₱150 | ₱300 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%201%2F2) |
-| 10 | **1/2" PPE Pipe Fittings** (tees, elbows, couplers, nipples) | 1 set | ₱200 | ₱200 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%20fitting%20set) |
-| 11 | **PTFE Thread Seal Tape** (Teflon, 10m roll) | 2 | ₱20 | ₱40 | [Shopee Hardware](https://shopee.ph/search?keyword=teflon%20tape) |
-| 12 | **PPR Welding Machine** (for heat-fusing PPE joints) | 1 | ₱350 | ₱350 | [Shopee Hardware](https://shopee.ph/search?keyword=ppr%20welding%20machine) |
+| 6 | **2CH Relay with Optocoupler** (main ESP32 — controls 2 central solenoid valves) | **1** | ₱90 | **₱90** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=2%20channel%20relay%20optocoupler) |
+| 7 | **1-ch Relay 10A** (optocoupler, per-room solenoid valve) | **3** | ₱50 | **₱150** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=relay%2010a%20optocoupler) |
+| 8 | **Fotek 40A SSR** (per-room power — lights/fan/appliances) | **3** | ₱280 | **₱840** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=fotek%20ssr%2040a) |
+| 9 | **Solenoid Valve 1/2" NC** (12V DC, normally closed) — 2 central (main) + 3 room | **5** | ₱250 | **₱1,250** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=solenoid%20valve%2012v) |
+| 10 | **Check Valve 1/2"** Brass (non-return) | 3 | ₱120 | ₱360 | [Shopee Hardware](https://shopee.ph/search?keyword=check%20valve%201%2F2%20brass) |
+| 11 | **1/2" PPE Pipe** (Polypropylene, 4m length) | 2 | ₱150 | ₱300 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%201%2F2) |
+| 12 | **1/2" PPE Pipe Fittings** (tees, elbows, couplers, nipples) | 1 set | ₱200 | ₱200 | [Shopee Hardware](https://shopee.ph/search?keyword=ppe%20pipe%20fitting%20set) |
+| 13 | **PTFE Thread Seal Tape** (Teflon, 10m roll) | 2 | ₱20 | ₱40 | [Shopee Hardware](https://shopee.ph/search?keyword=teflon%20tape) |
+| 14 | **PPR Welding Machine** (for heat-fusing PPE joints) | 1 | ₱350 | ₱350 | [Shopee Hardware](https://shopee.ph/search?keyword=ppr%20welding%20machine) |
 
-**Core Subtotal:** **₱5,300**
+**Core Subtotal:** **₱7,150**
 
 ---
 
@@ -62,10 +64,10 @@ T-Connector → 1/2" PPE Pipe → Each Room
 
 | # | Item | Qty | Unit (₱) | Total (₱) | Link |
 |---|------|-----|----------|-----------|------|
-| 12 | **220V AC to 12V 5A Switching Power Supply** (S-60-12, 60W, LRS-50/60-12) | **4** | ₱280 | **₱1,120** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=12v%205a%20power%20supply) |
-| 13 | **12V to 5V Buck Converter** (LM2596S, DC-DC Step-Down Module, USB output) | **4** | ₱65 | **₱260** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=lm2596s%20buck%20converter) |
-| 14 | **USB to Micro USB Data Cable** (braided, 1m) | **4** | ₱120 | **₱480** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=micro%20usb%20cable) |
-| 15 | **12V Male DC Power Jack Adapter** (5.5×2.1mm, screw terminal) | **4** | ₱9 | **₱36** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=dc%20power%20jack%20adapter) |
+| 15 | **220V AC to 12V 5A Switching Power Supply** (S-60-12, 60W, LRS-50/60-12) | **4** | ₱280 | **₱1,120** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=12v%205a%20power%20supply) |
+| 16 | **12V to 5V Buck Converter** (LM2596S, DC-DC Step-Down Module, USB output) | **4** | ₱65 | **₱260** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=lm2596s%20buck%20converter) |
+| 17 | **USB to Micro USB Data Cable** (braided, 1m) | **4** | ₱120 | **₱480** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=micro%20usb%20cable) |
+| 18 | **12V Male DC Power Jack Adapter** (5.5×2.1mm, screw terminal) | **4** | ₱9 | **₱36** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=dc%20power%20jack%20adapter) |
 
 **Power Subtotal:** **₱1,896**
 
@@ -77,12 +79,12 @@ T-Connector → 1/2" PPE Pipe → Each Room
 
 | # | Item | Qty | Unit (₱) | Total (₱) | Link |
 |---|------|-----|----------|-----------|------|
-| 15 | **Waterproof ABS Enclosure Box IP67** 175×125×75mm | **4** | ₱280 | **₱1,120** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=waterproof%20enclosure%20ip67) |
-| 16 | **Cable Glands** PG9 / PG11 (waterproof entry) | 6 | ₱15 | ₱90 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=cable%20gland%20pg9) |
-| 17 | **Heat Shrink Tube Set** (assorted sizes) | 1 | ₱60 | ₱60 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=heat%20shrink%20tube) |
-| 18 | **Cable Ties** 100mm (100pc) | 1 | ₱30 | ₱30 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=cable%20tie) |
-| 19 | **M3 Screws + Standoffs Kit** (PCB mounting) | 1 | ₱60 | ₱60 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=m3%20standoff) |
-| 20 | **Double-sided Tape / Velcro** (mounting sensors) | 1 | ₱30 | ₱30 | [Shopee Hardware](https://shopee.ph/search?keyword=double%20sided%20tape%20heavy%20duty) |
+| 19 | **Waterproof ABS Enclosure Box IP67** 175×125×75mm | **4** | ₱280 | **₱1,120** | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=waterproof%20enclosure%20ip67) |
+| 20 | **Cable Glands** PG9 / PG11 (waterproof entry) | 6 | ₱15 | ₱90 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=cable%20gland%20pg9) |
+| 21 | **Heat Shrink Tube Set** (assorted sizes) | 1 | ₱60 | ₱60 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=heat%20shrink%20tube) |
+| 22 | **Cable Ties** 100mm (100pc) | 1 | ₱30 | ₱30 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=cable%20tie) |
+| 23 | **M3 Screws + Standoffs Kit** (PCB mounting) | 1 | ₱60 | ₱60 | [Makerlab Shopee](https://shopee.ph/makerlabelectronics/search?keyword=m3%20standoff) |
+| 24 | **Double-sided Tape / Velcro** (mounting sensors) | 1 | ₱30 | ₱30 | [Shopee Hardware](https://shopee.ph/search?keyword=double%20sided%20tape%20heavy%20duty) |
 
 **Enclosure Subtotal:** **₱550**
 
@@ -94,9 +96,9 @@ T-Connector → 1/2" PPE Pipe → Each Room
 
 | Tier | Category | ₱ | Notes |
 |------|----------|---|-------|
-| **MVP** | 1 room (RFID + leak sensor) + main (2 solenoids + calibrated sensor) + PPE pipe | **~₱7,746** | Prove ESP-NOW + Firebase concept |
-| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱7,746** | Full multi-room system |
-| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱7,746** | Production-ready! |
+| **MVP** | 1 room (RFID + leak sensor + SSR + solenoid) + main (2CH relay, 2 solenoids, calibrated sensor) + PPE pipe | **~₱9,596** | Prove ESP-NOW + Firebase concept |
+| **Standard** | 3 rooms + main + enclosure + PPE pipe + welding machine | **~₱9,596** | Full multi-room system |
+| **Complete** | Standard + Firebase (free tier) + Vercel (free tier) | **~₱9,596** | Production-ready! |
 
 ---
 

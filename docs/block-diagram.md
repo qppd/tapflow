@@ -11,29 +11,37 @@
 graph TB
     subgraph "Room 1 — Bathroom"
         RFID1[MFRC522 RFID] --> R1[Room ESP32 #1]
-        R1S[Flow Sensor YF-S201\n(leak detection)] --> R1
+        R1S["Flow Sensor YF-S201\n(leak detection)"] --> R1
+        R1 --> SSR1[Fotek 40A SSR\nRoom Power]
+        R1 --> RRLY1[1-ch Relay\nRoom Solenoid]
+        RRLY1 --> RSOL1[Solenoid Valve\n12V NC]
         R1 --> R1E[ESP-NOW TX]
     end
 
     subgraph "Room 2 — Kitchen"
         RFID2[MFRC522 RFID] --> R2[Room ESP32 #2]
-        R2S[Flow Sensor YF-S201\n(leak detection)] --> R2
+        R2S["Flow Sensor YF-S201\n(leak detection)"] --> R2
+        R2 --> SSR2[Fotek 40A SSR\nRoom Power]
+        R2 --> RRLY2[1-ch Relay\nRoom Solenoid]
+        RRLY2 --> RSOL2[Solenoid Valve\n12V NC]
         R2 --> R2E[ESP-NOW TX]
     end
 
     subgraph "Room 3 — Shower"
         RFID3[MFRC522 RFID] --> R3[Room ESP32 #3]
-        R3S[Flow Sensor YF-S201\n(leak detection)] --> R3
+        R3S["Flow Sensor YF-S201\n(leak detection)"] --> R3
+        R3 --> SSR3[Fotek 40A SSR\nRoom Power]
+        R3 --> RRLY3[1-ch Relay\nRoom Solenoid]
+        RRLY3 --> RSOL3[Solenoid Valve\n12V NC]
         R3 --> R3E[ESP-NOW TX]
     end
 
     subgraph "Main ESP32 — Centralized"
         ESPRX[ESP-NOW RX Aggregator] --> MAIN[Main ESP32]
-        MFS[Flow Sensor\n(calibrated, GPIO 34)] --> MAIN
-        MAIN --> RELAY1[1-ch Relay 10A\nSolenoid 1]
-        MAIN --> RELAY2[1-ch Relay 10A\nSolenoid 2]
-        RELAY1 --> SOL1[Solenoid Valve 1\n12V NC]
-        RELAY2 --> SOL2[Solenoid Valve 2\n12V NC]
+        MFS["Flow Sensor\n(calibrated, GPIO 34)"] --> MAIN
+        MAIN --> RELAY12[2CH Relay\nIN1→GPIO 19, IN2→GPIO 18]
+        RELAY12 --> SOL1[Solenoid Valve 1\n12V NC]
+        RELAY12 --> SOL2[Solenoid Valve 2\n12V NC]
         MAIN --> WIFI[WiFi + mobizt SDK]
     end
 
@@ -351,24 +359,24 @@ Each YF-S201 sensor has 3 wires: **Red (VCC)**, **Black (GND)**, **Yellow (Signa
 
 ```mermaid
 graph LR
-    AC1[220V AC<br/>Outlet] --> PSU1[12V 5A PSU #1<br/>(Room ESP32)]
+    AC1[220V AC<br/>Outlet] --> PSU1["12V 5A PSU #1<br/>(Room ESP32)"]
     PSU1 --> BUCK1[LM2596S<br/>Buck #1]
-    BUCK1 --> ESP1[Room ESP32<br/>(5V)]
+    BUCK1 --> ESP1["Room ESP32<br/>(5V)"]
     PSU1 --> SOL1[Solenoid<br/>12V] & SSR1[SSR<br/>12V]
 
-    AC2[220V AC<br/>Outlet] --> PSU2[12V 5A PSU #2<br/>(Room ESP32)]
+    AC2[220V AC<br/>Outlet] --> PSU2["12V 5A PSU #2<br/>(Room ESP32)"]
     PSU2 --> BUCK2[LM2596S<br/>Buck #2]
-    BUCK2 --> ESP2[Room ESP32<br/>(5V)]
+    BUCK2 --> ESP2["Room ESP32<br/>(5V)"]
     PSU2 --> SOL2[Solenoid<br/>12V] & SSR2[SSR<br/>12V]
 
-    AC3[220V AC<br/>Outlet] --> PSU3[12V 5A PSU #3<br/>(Room ESP32)]
+    AC3[220V AC<br/>Outlet] --> PSU3["12V 5A PSU #3<br/>(Room ESP32)"]
     PSU3 --> BUCK3[LM2596S<br/>Buck #3]
-    BUCK3 --> ESP3[Room ESP32<br/>(5V)]
+    BUCK3 --> ESP3["Room ESP32<br/>(5V)"]
     PSU3 --> SOL3[Solenoid<br/>12V] & SSR3[SSR<br/>12V]
 
-    AC4[220V AC<br/>Outlet] --> PSU4[12V 5A PSU #4<br/>(Main ESP32)]
+    AC4[220V AC<br/>Outlet] --> PSU4["12V 5A PSU #4<br/>(Main ESP32)"]
     PSU4 --> BUCK4[LM2596S<br/>Buck #4]
-    BUCK4 --> ESP4[Main ESP32<br/>(5V)]
+    BUCK4 --> ESP4["Main ESP32<br/>(5V)"]
 ```
 
 </details>
@@ -426,7 +434,7 @@ graph TD
                    └─────────────┘
 ```
 
-> **Room ESP32 pin usage:** GPIO 26 (flow sensor), GPIO 25 (SSR), GPIO 13 (solenoid relay), GPIO 5/18/19/23/27 (RFID SPI). Direct connection, no pull-up resistors needed (YF-S201 outputs digital pulses).
+> **Room ESP32 pin usage:** GPIO 26 (flow sensor), GPIO 27 (SSR), GPIO 25 (solenoid relay), GPIO 5/18/19/23 (RFID SPI) + GPIO 21 (RST). Direct connection, no pull-up resistors needed (YF-S201 outputs digital pulses).
 
 ---
 
@@ -450,7 +458,6 @@ graph TD
 
 ## Firebase RTDB Structure (Main ESP32 → Firebase)
 
-**Baud Rate:** 921600  
 **Format:** JSON Lines (newline-delimited JSON)  
 **Encoding:** UTF-8
 
@@ -478,9 +485,11 @@ graph TD
 ### 3 Room ESP32s — each gets 1 YF-S201 sensor
 Each sensor: Red → 5V, Black → GND, Yellow → GPIO 26
 
-### Main ESP32 — WiFi + Firebase
+### Main ESP32 — WiFi + Firebase + Centralized Valves
 
-- No SSR — each room controls its own solenoid
+- Calibrated YF-S201 flow sensor: Red → 5V, Black → GND, Yellow → GPIO 34
+- 2CH relay: IN1 → GPIO 19 (Solenoid 1), IN2 → GPIO 18 (Solenoid 2)
+- No SSR on main — room power SSRs live on the room ESP32s; each room also drives its own solenoid via its 1-ch relay (GPIO 25)
 - WiFi connects to Firebase RTDB via mobizt Firebase-ESP-Client
 
 > **ESP-NOW:** No wiring between room ESP32s and main ESP32 — communication is wireless via ESP-NOW protocol.
