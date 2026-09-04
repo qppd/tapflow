@@ -508,24 +508,18 @@ Each sensor: Red → 5V, Black → GND, Yellow → GPIO 26
 
 ## 3D Enclosure Models
 
-All 3D models and Fusion 360 source files are in the `model/` folder:
+All 3D models and Fusion 360 source files are in the `models/` folder:
 
 | File | Description |
 |------|-------------|
-| `water-meter-fusion-360-file.f3d` | Fusion 360 source file (editable) |
-| `water-meter-fixture.png` | Main fixture assembly render |
-| `water-meter-fixture-1.png` | Fixture view 1 |
-| `water-meter-fixture-2.png` | Fixture view 2 |
-| `water-meter-fixture-3.png` | Fixture view 3 |
-| `water-meter-fixture-4.png` | Fixture view 4 |
-| `water-meter-fixture-5.png` | Fixture view 5 |
-| `water-meter-fixture-6.png` | Fixture view 6 |
-| `water-meter-fixture-7.png` | Fixture view 7 |
-| `water-meter-fixture-8.png` | Fixture view 8 |
-| `water-meter-fixture-9.png` | Fixture view 9 |
-| `water-meter-fixture-10.png` | Fixture view 10 |
-| `water-meter-fixture-11.png` | Fixture view 11 |
-| `water-meter-fixture-12.png` | Fixture view 12 |
-| `water-meter-fixture-13.png` | Fixture view 13 |
+| `TapFlow.f3d` | Fusion 360 source file (editable) |
+| `tapflow_view_1.png` | Fixture view 1 |
+| `tapflow_view_2.png` | Fixture view 2 |
+| `tapflow_view_3.png` | Fixture view 3 |
+| `tapflow_view_4.png` | Fixture view 4 |
+| `tapflow_view_5.png` | Fixture view 5 |
+| `tapflow_view_6.png` | Fixture view 6 |
+| `tapflow_view_7.png` | Fixture view 7 |
+| `tapflow_view_8.png` | Fixture view 8 |
 
 > Use the `.f3d` file in Fusion 360 to modify the enclosure design, add mounting holes, or adjust dimensions for different components.

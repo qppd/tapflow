@@ -136,6 +136,26 @@ Follow these steps **in order**. Each step links to the detailed guide.
 
 ---
 
+## 3D Models
+
+Fusion 360 source files and fixture renders are in the [`models/`](./models/) folder:
+
+| File | Description |
+|------|-------------|
+| [`TapFlow.f3d`](./models/TapFlow.f3d) | Fusion 360 source file (editable) |
+| [`tapflow_view_1.png`](./models/tapflow_view_1.png) | Fixture view 1 |
+| [`tapflow_view_2.png`](./models/tapflow_view_2.png) | Fixture view 2 |
+| [`tapflow_view_3.png`](./models/tapflow_view_3.png) | Fixture view 3 |
+| [`tapflow_view_4.png`](./models/tapflow_view_4.png) | Fixture view 4 |
+| [`tapflow_view_5.png`](./models/tapflow_view_5.png) | Fixture view 5 |
+| [`tapflow_view_6.png`](./models/tapflow_view_6.png) | Fixture view 6 |
+| [`tapflow_view_7.png`](./models/tapflow_view_7.png) | Fixture view 7 |
+| [`tapflow_view_8.png`](./models/tapflow_view_8.png) | Fixture view 8 |
+
+> Open `TapFlow.f3d` in Fusion 360 to modify the enclosure design, add mounting holes, or adjust dimensions for different components.
+
+---
+
 ## Quick Verification Checklist
 
 After each phase, verify:
